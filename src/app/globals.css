@@ -1,0 +1,208 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   LIQUID GLASS & GRADIENT EFFECTS
+   ============================================ */
+
+@layer base {
+  /* Animated gradient blobs — Moonlit */
+  @keyframes blob-drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(30px, -50px) scale(1.1); }
+    50% { transform: translate(-20px, 20px) scale(0.95); }
+    75% { transform: translate(50px, 30px) scale(1.05); }
+  }
+
+  @keyframes blob-drift-reverse {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(-40px, 30px) scale(1.05); }
+    50% { transform: translate(30px, -40px) scale(0.9); }
+    75% { transform: translate(-20px, -20px) scale(1.1); }
+  }
+
+  .gradient-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    animation: blob-drift 20s ease-in-out infinite;
+  }
+
+  .gradient-blob-reverse {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    animation: blob-drift-reverse 25s ease-in-out infinite;
+  }
+
+  /* Liquid glass card hover effect */
+  .liquid-glass {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .liquid-glass::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.06),
+      transparent
+    );
+    transition: left 0.6s ease;
+    pointer-events: none;
+  }
+
+  .liquid-glass:hover::before {
+    left: 100%;
+  }
+
+  .liquid-glass:hover {
+    transform: translateY(-2px);
+  }
+
+  /* Storybook light glass shimmer */
+  .liquid-glass-light::before {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      transparent
+    );
+  }
+}
+
+/* ============================================
+   MINECRAFT THEME — wrapped in @layer base
+   so Tailwind v4 does not tree-shake them
+   ============================================ */
+
+@layer base {
+  /* Minecraft font classes — applied directly in components */
+  .mc-font {
+    font-family: var(--font-silkscreen), monospace !important;
+    letter-spacing: 1px;
+  }
+
+  .mc-font h1,
+  .mc-font h2,
+  .mc-font h3,
+  .mc-font .font-mc,
+  .mc-font-heading {
+    font-family: var(--font-press-start), monospace !important;
+  }
+
+  .mc-font * {
+    border-radius: 0 !important;
+  }
+
+  .mc-font img {
+    image-rendering: pixelated;
+  }
+
+  /* Background - village image */
+  .mc-bg {
+    background-image: url('/smw1_fieldsvillage.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+
+  /* Dark overlay for readability */
+  .mc-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Mob breathing animation */
+  @keyframes mob-breathe {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  .animate-mob-breathe {
+    animation: mob-breathe 3s ease-in-out infinite;
+  }
+
+  /* Text shadows */
+  .mc-text-shadow {
+    text-shadow: 2px 2px 0px #000000, 3px 3px 0px rgba(0, 0, 0, 0.5);
+  }
+  .mc-text-shadow-sm {
+    text-shadow: 2px 2px 0px #000000;
+  }
+
+  /* Glass panel */
+  .mc-glass {
+    background-color: rgba(0, 0, 0, 0.55) !important;
+    border: 4px solid rgba(255, 255, 255, 0.3) !important;
+    backdrop-filter: blur(4px);
+    color: #ffffff;
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Wood block button */
+  .mc-wood-block {
+    background-color: #a06f3f !important;
+    border: 4px solid #5d4028 !important;
+    box-shadow: inset 4px 4px 0px rgba(255, 255, 255, 0.2),
+      inset -4px -4px 0px rgba(0, 0, 0, 0.3);
+    color: white;
+    transition: transform 0.1s;
+  }
+  .mc-wood-block:active {
+    transform: scale(0.97);
+  }
+
+  /* Grass block */
+  .mc-grass-block {
+    background: linear-gradient(
+      to bottom,
+      #5e9d34 0%,
+      #5e9d34 30%,
+      #866043 30%,
+      #866043 100%
+    ) !important;
+    border: 4px solid #3a2617 !important;
+    border-top-color: #72b942 !important;
+    color: white;
+  }
+
+  /* Inventory slot */
+  .mc-inventory-slot {
+    background-color: #8b8b8b !important;
+    border: 4px solid !important;
+    border-color: #373737 #ffffff #ffffff #373737 !important;
+    box-shadow: inset 4px 4px 10px rgba(0, 0, 0, 0.4);
+  }
+}
