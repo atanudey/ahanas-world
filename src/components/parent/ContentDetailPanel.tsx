@@ -146,7 +146,7 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
                 <img src={mediaUrl} alt={content.title} className="w-full h-56 object-cover" />
               )}
               {content.media_type?.startsWith('video/') && (
-                <video src={mediaUrl} controls playsInline className="w-full h-56 object-cover" />
+                <video src={mediaUrl} controls playsInline preload="metadata" className="w-full h-56 object-cover" />
               )}
               {content.media_type?.startsWith('audio/') && (
                 <div className="p-6 flex items-center gap-4">
@@ -164,7 +164,7 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
                     <p className="font-bold text-sm text-slate-700">{content.title}</p>
                     <p className="text-xs text-slate-500">{content.duration_ms ? `${Math.round(content.duration_ms / 1000)}s` : 'Audio'}</p>
                   </div>
-                  <audio id="detail-audio" src={mediaUrl} onEnded={() => setIsPlaying(false)} />
+                  <audio id="detail-audio" src={mediaUrl} preload="metadata" onEnded={() => setIsPlaying(false)} />
                 </div>
               )}
             </div>

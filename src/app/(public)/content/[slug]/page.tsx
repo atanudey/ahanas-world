@@ -1,29 +1,60 @@
-'use client';
-
-import { useParams } from 'next/navigation';
-import { useTheme } from '@/context/ThemeContext';
-import { ContentDetail } from '@/components/public/ContentDetail';
-import { MinecraftDetail } from '@/components/minecraft/MinecraftDetail';
+import type { Metadata } from 'next';
 import { MOCK_CONTENT } from '@/lib/constants';
+import { ContentDetailClient } from '@/components/public/ContentDetailClient';
+import { createSupabaseAdmin } from '@/lib/supabase/server';
+import { getThumbnailUrl } from '@/lib/utils/storage';
 
-export default function ContentDetailPage() {
-  const { mode } = useTheme();
-  const params = useParams();
-  const slug = params.slug as string;
+interface Props {
+  params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+
+  // Try DB first
+  try {
+    const supabase = createSupabaseAdmin();
+    const { data } = await supabase
+      .from('content')
+      .select('title, description, thumbnail_path')
+      .eq('slug', slug)
+      .eq('status', 'published')
+      .eq('visibility', 'public')
+      .single();
+
+    if (data) {
+      const ogImage = data.thumbnail_path ? getThumbnailUrl(data.thumbnail_path) : undefined;
+      return {
+        title: data.title,
+        description: data.description || `${data.title} by Ahana`,
+        openGraph: {
+          title: `${data.title} | Ahana's World`,
+          description: data.description || `${data.title} by Ahana`,
+          ...(ogImage && { images: [ogImage] }),
+        },
+      };
+    }
+  } catch {
+    // Fall through to mock data
+  }
+
+  // Fallback to mock
   const item = MOCK_CONTENT.find((i) => i.slug === slug);
-
-  if (!item || item.visibility !== 'public' || item.status !== 'published') {
-    return (
-      <div className="max-w-7xl mx-auto px-6 py-32 text-center">
-        <h1 className="text-4xl font-black mb-4">Not Found</h1>
-        <p className="text-lg opacity-60">This content doesn&apos;t exist or isn&apos;t public yet.</p>
-      </div>
-    );
+  if (item) {
+    return {
+      title: item.title,
+      description: item.description,
+      openGraph: {
+        title: `${item.title} | Ahana's World`,
+        description: item.description,
+      },
+    };
   }
 
-  if (mode === 'minecraft') {
-    return <MinecraftDetail item={item} />;
-  }
+  return { title: 'Content' };
+}
 
-  return <ContentDetail item={item} />;
+export default async function ContentDetailPage({ params }: Props) {
+  const { slug } = await params;
+  return <ContentDetailClient slug={slug} />;
 }

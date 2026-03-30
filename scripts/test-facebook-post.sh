@@ -35,7 +35,7 @@ echo "📤 Uploading image to Facebook Page..."
 echo ""
 
 RESPONSE=$(curl -s -X POST \
-  "https://graph.facebook.com/v19.0/${PAGE_ID}/photos" \
+  "https://graph.facebook.com/v21.0/${PAGE_ID}/photos" \
   -F "source=@${IMAGE_PATH}" \
   -F "message=${MESSAGE}" \
   -F "access_token=${PAGE_ACCESS_TOKEN}")

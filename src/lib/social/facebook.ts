@@ -1,6 +1,6 @@
 import type { PublishRequest, PublishResult, PlatformTokens, SocialPlatformClient } from './types';
 
-const GRAPH_API = 'https://graph.facebook.com/v19.0';
+const GRAPH_API = 'https://graph.facebook.com/v21.0';
 
 export const facebookClient: SocialPlatformClient = {
   isConfigured(tokens: PlatformTokens): boolean {

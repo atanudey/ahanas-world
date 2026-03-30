@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import type { UploadState } from '@/lib/types/capture';
+import { compressImage, extractVideoThumbnail } from '@/lib/utils/compress';
 
 interface UploadParams {
   type: 'song' | 'art' | 'video' | 'reading';
@@ -20,29 +21,48 @@ export function useUploadContent() {
   });
 
   const upload = useCallback(async (params: UploadParams) => {
-    setUploadState({ status: 'uploading', progress: 10 });
+    setUploadState({ status: 'uploading', progress: 5 });
 
     try {
+      let mediaBlob = params.mediaBlob;
+      let thumbnailBlob = params.thumbnailBlob;
+      const mimeType = params.mimeType ?? 'application/octet-stream';
+
+      // Compress images before upload
+      if (mediaBlob && mimeType.startsWith('image/')) {
+        setUploadState({ status: 'uploading', progress: 10 });
+        mediaBlob = await compressImage(mediaBlob, 1920, 0.85);
+      }
+
+      // Auto-generate thumbnail for video if not provided
+      if (mediaBlob && mimeType.startsWith('video/') && !thumbnailBlob) {
+        setUploadState({ status: 'uploading', progress: 10 });
+        const thumb = await extractVideoThumbnail(mediaBlob);
+        if (thumb) thumbnailBlob = thumb;
+      }
+
+      setUploadState({ status: 'uploading', progress: 20 });
+
       const formData = new FormData();
       formData.append('type', params.type);
       formData.append('title', params.title);
       formData.append('notes', params.notes);
 
-      if (params.mediaBlob) {
-        const ext = params.mimeType?.split('/')[1]?.split(';')[0] ?? 'bin';
-        formData.append('media', params.mediaBlob, `capture.${ext}`);
-        formData.append('mimeType', params.mimeType ?? 'application/octet-stream');
+      if (mediaBlob) {
+        const ext = mimeType.split('/')[1]?.split(';')[0] ?? 'bin';
+        formData.append('media', mediaBlob, `capture.${ext}`);
+        formData.append('mimeType', mimeType);
       }
 
-      if (params.thumbnailBlob) {
-        formData.append('thumbnail', params.thumbnailBlob, 'thumb.jpg');
+      if (thumbnailBlob) {
+        formData.append('thumbnail', thumbnailBlob, 'thumb.jpg');
       }
 
       if (params.duration !== undefined) {
         formData.append('duration', String(params.duration));
       }
 
-      setUploadState({ status: 'uploading', progress: 30 });
+      setUploadState({ status: 'uploading', progress: 40 });
 
       const res = await fetch('/api/content/upload', {
         method: 'POST',

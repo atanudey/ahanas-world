@@ -1,4 +1,5 @@
 import type { PublishRequest, PublishResult, PlatformTokens, SocialPlatformClient } from './types';
+import { getAppCredentials } from '@/lib/credentials';
 
 export const youtubeClient: SocialPlatformClient = {
   isConfigured(tokens: PlatformTokens): boolean {
@@ -88,17 +89,16 @@ export const youtubeClient: SocialPlatformClient = {
 };
 
 async function refreshAccessToken(refreshToken: string): Promise<string | null> {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const creds = await getAppCredentials();
 
-  if (!clientId || !clientSecret) return null;
+  if (!creds.googleClientId || !creds.googleClientSecret) return null;
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
+      client_id: creds.googleClientId,
+      client_secret: creds.googleClientSecret,
       refresh_token: refreshToken,
       grant_type: 'refresh_token',
     }),

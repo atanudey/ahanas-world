@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseAdmin } from '@/lib/supabase/server';
+import { getAppCredentials } from '@/lib/credentials';
 
 /**
  * GET /api/settings/oauth/callback
@@ -11,21 +12,22 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
   const state = searchParams.get('state'); // 'facebook' or 'google'
   const errorParam = searchParams.get('error');
+  const creds = await getAppCredentials();
+  const baseUrl = creds.siteUrl;
 
   if (errorParam || !code) {
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/parent?oauth_error=${errorParam || 'no_code'}`,
+      `${baseUrl}/parent?oauth_error=${errorParam || 'no_code'}`,
     );
   }
 
   const supabase = createSupabaseAdmin();
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
   try {
     if (state === 'facebook') {
-      await handleFacebookCallback(code, supabase, baseUrl);
+      await handleFacebookCallback(code, supabase, creds);
     } else if (state === 'google') {
-      await handleGoogleCallback(code, supabase);
+      await handleGoogleCallback(code, supabase, creds);
     }
 
     return NextResponse.redirect(`${baseUrl}/parent?oauth_success=${state}`);
@@ -38,29 +40,27 @@ export async function GET(request: Request) {
 async function handleFacebookCallback(
   code: string,
   supabase: ReturnType<typeof createSupabaseAdmin>,
-  baseUrl: string,
+  creds: Awaited<ReturnType<typeof getAppCredentials>>,
 ) {
-  const appId = process.env.FACEBOOK_APP_ID!;
-  const appSecret = process.env.FACEBOOK_APP_SECRET!;
-  const redirectUri = `${baseUrl}/api/settings/oauth/callback`;
+  const redirectUri = `${creds.siteUrl}/api/settings/oauth/callback`;
 
   // Exchange code for short-lived token
   const tokenRes = await fetch(
-    `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`,
+    `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${creds.facebookAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${creds.facebookAppSecret}&code=${code}`,
   );
   const tokenData = await tokenRes.json();
   if (!tokenData.access_token) throw new Error('No access token');
 
   // Exchange for long-lived token
   const longRes = await fetch(
-    `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${tokenData.access_token}`,
+    `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${creds.facebookAppId}&client_secret=${creds.facebookAppSecret}&fb_exchange_token=${tokenData.access_token}`,
   );
   const longData = await longRes.json();
   const longToken = longData.access_token || tokenData.access_token;
 
   // Get pages and Instagram accounts
   const pagesRes = await fetch(
-    `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${longToken}`,
+    `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${longToken}`,
   );
   const pagesData = await pagesRes.json();
   const page = pagesData.data?.[0];
@@ -82,10 +82,9 @@ async function handleFacebookCallback(
 async function handleGoogleCallback(
   code: string,
   supabase: ReturnType<typeof createSupabaseAdmin>,
+  creds: Awaited<ReturnType<typeof getAppCredentials>>,
 ) {
-  const clientId = process.env.GOOGLE_CLIENT_ID!;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/settings/oauth/callback';
+  const redirectUri = creds.googleRedirectUri || `${creds.siteUrl}/api/settings/oauth/callback`;
 
   // Exchange code for tokens
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -93,8 +92,8 @@ async function handleGoogleCallback(
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       code,
-      client_id: clientId,
-      client_secret: clientSecret,
+      client_id: creds.googleClientId,
+      client_secret: creds.googleClientSecret,
       redirect_uri: redirectUri,
       grant_type: 'authorization_code',
     }),
