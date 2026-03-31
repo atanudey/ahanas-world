@@ -24,7 +24,7 @@ export function ArchiveRoomView({ t, allContent, onOpenDetail }: {
           const thumbSrc = item.thumbnail_path
             ? getThumbnailUrl(item.thumbnail_path)
             : item.thumbnail || 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=600';
-          const isDb = !!item.media_path || !!item.thumbnail_path;
+          const isDb = !!item.created_at;
 
           return (
             <div
