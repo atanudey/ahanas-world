@@ -140,7 +140,7 @@ export default function HubPage() {
 
   return (
     <div
-      className={`min-h-screen ${t.bg} ${t.text} transition-colors duration-700 relative overflow-hidden flex flex-col`}
+      className={`min-h-screen ${t.bg} ${t.text} transition-colors duration-700 relative flex flex-col`}
     >
       <GradientBlobs />
       {/* Texture */}
@@ -253,7 +253,7 @@ export default function HubPage() {
       )}
 
       {/* Header */}
-      <header className="relative p-6 lg:p-10 flex justify-between items-center">
+      <header className="relative z-10 p-6 lg:p-10 flex justify-between items-center">
         <div className="flex items-center gap-4 lg:gap-6">
           <div
             className={`w-14 h-14 lg:w-16 lg:h-16 rounded-3xl bg-gradient-to-tr ${t.gradient} p-1 shadow-xl`}
@@ -311,7 +311,7 @@ export default function HubPage() {
       </header>
 
       {/* Main Grid */}
-      <main className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 p-6 lg:p-10 pb-24 max-w-7xl mx-auto flex-1 content-start">
+      <main className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 p-6 lg:p-10 pb-24 max-w-7xl mx-auto flex-1 content-start">
         {/* Capture Card */}
         <div className="lg:col-span-4 space-y-8">
           <div
