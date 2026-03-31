@@ -142,10 +142,12 @@ export default function HubPage() {
     <div
       className={`min-h-screen ${t.bg} ${t.text} transition-colors duration-700 relative flex flex-col`}
     >
-      <GradientBlobs />
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <GradientBlobs />
+      </div>
       {/* Texture */}
       <div
-        className={`absolute inset-0 pointer-events-none ${t.texture}`}
+        className={`fixed inset-0 z-0 pointer-events-none ${t.texture}`}
         style={{
           backgroundImage:
             "url('https://www.transparenttextures.com/patterns/handmade-paper.png')",
@@ -317,12 +319,12 @@ export default function HubPage() {
           <div
             className={`bg-gradient-to-br ${t.gradient} p-8 lg:p-10 rounded-[3rem] text-white shadow-2xl relative group overflow-hidden`}
           >
-            <Sun className="absolute -top-10 -right-10 w-48 h-48 opacity-20 group-hover:scale-110 transition duration-1000" />
-            <h2 className="text-3xl lg:text-4xl font-black mb-2">Capture!</h2>
-            <p className="text-white/90 text-sm mb-8 font-medium">
+            <Sun className="absolute -top-10 -right-10 w-48 h-48 opacity-20 pointer-events-none" />
+            <h2 className="relative z-10 text-3xl lg:text-4xl font-black mb-2">Capture!</h2>
+            <p className="relative z-10 text-white/90 text-sm mb-8 font-medium">
               Add a new sketch, song, or story.
             </p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="relative z-10 grid grid-cols-2 gap-4">
               {CAPTURE_ACTIONS.map((act) => (
                 <button
                   key={act.label}
