@@ -64,7 +64,7 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play().catch(() => {});
       }
       setCaptureState('previewing');
     } catch {
@@ -72,35 +72,63 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
     }
   }, [facing, mode, stopStream]);
 
+  // Mount: start camera with isMounted guard for Strict Mode
   useEffect(() => {
-    startCamera();
-    return () => stopStream();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let isMounted = true;
+
+    const initCamera = async () => {
+      try {
+        const constraints: MediaStreamConstraints = {
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        // Component unmounted while awaiting — kill the orphaned stream
+        if (!isMounted) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+        setCaptureState('previewing');
+      } catch {
+        if (isMounted) {
+          setError('Could not access camera. Please allow camera access and try again.');
+        }
+      }
+    };
+
+    initCamera();
+    return () => {
+      isMounted = false;
+      if (timerRef.current) clearInterval(timerRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
   }, []);
 
-  const flipCamera = useCallback(() => {
+  const flipCamera = useCallback(async () => {
     const next = facing === 'user' ? 'environment' : 'user';
     setFacing(next);
-    // Restart camera with new facing
-    setTimeout(() => {
-      const doRestart = async () => {
-        stopStream();
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: next, width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: mode === 'video',
-          });
-          streamRef.current = stream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.play();
-          }
-        } catch {
-          setError('Could not switch camera.');
-        }
-      };
-      doRestart();
-    }, 100);
+    stopStream();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: next, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: mode === 'video',
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+    } catch {
+      setError('Could not switch camera.');
+    }
   }, [facing, mode, stopStream]);
 
   const capturePhoto = useCallback(() => {
@@ -255,7 +283,6 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
         {captureState !== 'recorded' && (
           <video
             ref={videoRef}
-            autoPlay
             playsInline
             muted
             className="w-full h-full object-cover"
