@@ -1,0 +1,59 @@
+{
+  "packageId": "com.ahanasworld.app",
+  "host": "0d7d975e-8235-4be3-a0cd-6b2b8639c101-00-3m9uvd6yjk597.picard.replit.dev",
+  "name": "Ahana's World",
+  "launcherName": "Ahana's World",
+  "display": "standalone",
+  "themeColor": "#7c3aed",
+  "themeColorDark": "#0f0326",
+  "navigationColor": "#0f0326",
+  "navigationColorDark": "#0f0326",
+  "navigationDividerColor": "#0f0326",
+  "navigationDividerColorDark": "#0f0326",
+  "backgroundColor": "#0f0326",
+  "enableNotifications": false,
+  "startUrl": "/hub",
+  "iconUrl": "https://0d7d975e-8235-4be3-a0cd-6b2b8639c101-00-3m9uvd6yjk597.picard.replit.dev/icon",
+  "maskableIconUrl": "https://0d7d975e-8235-4be3-a0cd-6b2b8639c101-00-3m9uvd6yjk597.picard.replit.dev/icon",
+  "shortcuts": [
+    {
+      "name": "Creative Studio",
+      "shortName": "Studio",
+      "url": "/hub",
+      "icon": {
+        "src": "https://0d7d975e-8235-4be3-a0cd-6b2b8639c101-00-3m9uvd6yjk597.picard.replit.dev/icon"
+      }
+    },
+    {
+      "name": "Parent Dashboard",
+      "shortName": "Parent",
+      "url": "/parent/login",
+      "icon": {
+        "src": "https://0d7d975e-8235-4be3-a0cd-6b2b8639c101-00-3m9uvd6yjk597.picard.replit.dev/icon"
+      }
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://0d7d975e-8235-4be3-a0cd-6b2b8639c101-00-3m9uvd6yjk597.picard.replit.dev/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": false
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://0d7d975e-8235-4be3-a0cd-6b2b8639c101-00-3m9uvd6yjk597.picard.replit.dev/",
+  "minSdkVersion": 23,
+  "splashScreenFadeOutDuration": 300,
+  "signingMode": "new",
+  "appVersionCode": 1,
+  "appVersionName": "1.0.0"
+}

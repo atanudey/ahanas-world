@@ -1,0 +1,7 @@
+app/
+*.apk
+*.aab
+*.keystore
+.build/
+.gradle/
+build/
