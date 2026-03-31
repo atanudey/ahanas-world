@@ -21,6 +21,24 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  webpack(config) {
+    for (const rule of config.module.rules) {
+      if (!rule || typeof rule !== "object" || !rule.oneOf) continue;
+      for (const item of rule.oneOf) {
+        if (!item || !Array.isArray(item.use)) continue;
+        for (const useItem of item.use) {
+          if (
+            useItem?.loader?.includes("css-loader") &&
+            useItem?.options &&
+            typeof useItem.options === "object"
+          ) {
+            useItem.options.url = false;
+          }
+        }
+      }
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
