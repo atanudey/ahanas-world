@@ -4,41 +4,38 @@
 # ============================================
 #
 # - Replit: runs HTTP on port 5000 (Replit provides HTTPS)
-# - Local: runs HTTPS on port 3030 (self-signed cert for camera/mic)
+# - Local: runs HTTP on configured port (default 3030)
+#
+# For camera/mic on mobile, use the Replit HTTPS URL or ngrok.
 #
 # Usage:
 #   ./scripts/dev.sh          # auto-detect
-#   ./scripts/dev.sh --http   # force HTTP
-#   ./scripts/dev.sh --https  # force HTTPS
+#   ./scripts/dev.sh --https  # force HTTPS (requires mkcert -install first)
 
 PORT="${PORT:-3030}"
-MODE=""
+USE_HTTPS=false
 
 for arg in "$@"; do
   case $arg in
-    --http) MODE="http" ;;
-    --https) MODE="https" ;;
+    --https) USE_HTTPS=true ;;
   esac
 done
 
-# Auto-detect environment
-if [ -z "$MODE" ]; then
-  if [ -n "$REPL_ID" ] || [ -n "$REPL_SLUG" ]; then
-    # Replit — HTTPS is handled by the platform
-    MODE="http"
-    PORT="${PORT:-5000}"
-    echo "  Detected: Replit — using HTTP (platform provides HTTPS)"
-  else
-    # Local development — use HTTPS for camera/mic on mobile
-    MODE="https"
-    echo "  Detected: Local — using HTTPS (needed for camera/mic on mobile devices)"
-  fi
+# Auto-detect Replit
+if [ -n "$REPL_ID" ] || [ -n "$REPL_SLUG" ]; then
+  PORT="${PORT:-5000}"
+  echo "  Detected: Replit"
 fi
 
-echo "  Starting on port $PORT ($MODE)..."
+echo "  Starting on port $PORT..."
+echo "  Local:   http://localhost:$PORT"
+echo "  Network: http://$(hostname -I 2>/dev/null | awk '{print $1}' || ipconfig getifaddr en0 2>/dev/null || echo '0.0.0.0'):$PORT"
+echo ""
+echo "  TIP: For camera/mic on mobile, use your Replit HTTPS URL"
+echo "       or install ngrok: ngrok http $PORT"
 echo ""
 
-if [ "$MODE" = "https" ]; then
+if [ "$USE_HTTPS" = true ]; then
   exec npx next dev -p "$PORT" -H 0.0.0.0 --webpack --experimental-https
 else
   exec npx next dev -p "$PORT" -H 0.0.0.0 --webpack
