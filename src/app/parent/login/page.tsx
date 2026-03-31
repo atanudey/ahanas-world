@@ -13,7 +13,7 @@ export default function ParentLoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPin, setShowPin] = useState(false);
-  const [isFirstTime, setIsFirstTime] = useState(false);
+  const [isFirstTime, setIsFirstTime] = useState<boolean | null>(null);
   const [confirmPin, setConfirmPin] = useState('');
   const [step, setStep] = useState<'enter' | 'confirm'>('enter');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,7 +22,7 @@ export default function ParentLoginPage() {
     fetch('/api/auth/verify-pin')
       .then((r) => r.json())
       .then((data) => setIsFirstTime(!data.pinConfigured))
-      .catch(() => {});
+      .catch(() => setIsFirstTime(true));
     inputRef.current?.focus();
   }, []);
 
@@ -96,11 +96,13 @@ export default function ParentLoginPage() {
             Parent Studio
           </h1>
           <p className={`${t.muted} text-sm mb-8 font-medium`}>
-            {isFirstTime
-              ? step === 'confirm'
-                ? 'Confirm your new PIN'
-                : 'Set up a PIN to protect your dashboard'
-              : 'Enter your PIN to continue'}
+            {isFirstTime === null
+              ? 'Checking...'
+              : isFirstTime
+                ? step === 'confirm'
+                  ? 'Confirm your new PIN'
+                  : 'Set up a PIN to protect your dashboard'
+                : 'Enter your PIN to continue'}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -141,7 +143,7 @@ export default function ParentLoginPage() {
 
             <button
               type="submit"
-              disabled={loading || pin.length < 4}
+              disabled={loading || pin.length < 4 || isFirstTime === null}
               className={`w-full py-4 rounded-2xl font-bold text-white text-lg
                 bg-gradient-to-r ${t.gradient} shadow-xl
                 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]
