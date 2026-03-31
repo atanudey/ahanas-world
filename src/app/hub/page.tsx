@@ -311,7 +311,7 @@ export default function HubPage() {
       </header>
 
       {/* Main Grid */}
-      <main className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 p-6 lg:p-10 max-w-7xl mx-auto flex-1 content-start">
+      <main className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 p-6 lg:p-10 pb-24 max-w-7xl mx-auto flex-1 content-start">
         {/* Capture Card */}
         <div className="lg:col-span-4 space-y-8">
           <div
@@ -327,7 +327,8 @@ export default function HubPage() {
                 <button
                   key={act.label}
                   onClick={() => handleCapture(act.label)}
-                  className="bg-white/20 py-4 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-white/30 transition active:scale-95 shadow-sm"
+                  className="bg-white/20 py-4 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-white/30 transition active:scale-95 shadow-sm cursor-pointer touch-action-manipulation select-none"
+                  style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                 >
                   <act.icon className="w-6 h-6" />
                   <span className="text-[10px] font-black uppercase tracking-widest">

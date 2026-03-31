@@ -16,15 +16,19 @@ export function ThemeToggle() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click/touch
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
   }, []);
 
   const CurrentIcon = THEME_ICONS[mode].icon;
@@ -33,7 +37,8 @@ export function ThemeToggle() {
     <div className="relative z-[60]" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className={`p-2 rounded-full border ${t.border} bg-white/20 hover:scale-110 transition active:scale-95`}
+        className={`p-2 rounded-full border ${t.border} bg-white/20 hover:scale-110 transition active:scale-95 cursor-pointer`}
+        style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         aria-label="Switch theme"
       >
         <CurrentIcon className={`w-5 h-5 ${THEME_ICONS[mode].color}`} />
@@ -54,11 +59,12 @@ export function ThemeToggle() {
                   setTheme(themeKey);
                   setOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-all ${
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold transition-all cursor-pointer ${
                   isActive
                     ? `bg-gradient-to-r ${t.gradient} text-white`
                     : `${t.text} hover:bg-black/10`
                 }`}
+                style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-white' : THEME_ICONS[themeKey].color}`} />
                 {THEMES[themeKey].name}

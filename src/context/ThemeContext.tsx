@@ -12,18 +12,36 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+function getStoredTheme(): ThemeMode {
+  if (typeof window === 'undefined') return 'moonlit';
+  const stored = localStorage.getItem('ahanas-theme');
+  if (stored && THEME_ORDER.includes(stored as ThemeMode)) {
+    return stored as ThemeMode;
+  }
+  return 'moonlit';
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>('moonlit');
+  const [mounted, setMounted] = useState(false);
+
+  // Load stored theme on mount
+  useEffect(() => {
+    setMode(getStoredTheme());
+    setMounted(true);
+  }, []);
 
   // Set data-theme attribute on <html> for Minecraft CSS hooks
   useEffect(() => {
+    if (!mounted) return;
     const html = document.documentElement;
     if (mode === 'minecraft') {
       html.setAttribute('data-theme', 'minecraft');
     } else {
       html.removeAttribute('data-theme');
     }
-  }, [mode]);
+    localStorage.setItem('ahanas-theme', mode);
+  }, [mode, mounted]);
 
   const toggle = useCallback(() => {
     setMode((prev) => {
