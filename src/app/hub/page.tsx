@@ -255,85 +255,77 @@ export default function HubPage() {
       )}
 
       {/* Header */}
-      <header className="relative z-10 p-6 lg:p-10 flex justify-between items-center">
-        <div className="flex items-center gap-4 lg:gap-6">
-          <div
-            className={`w-14 h-14 lg:w-16 lg:h-16 rounded-3xl bg-gradient-to-tr ${t.gradient} p-1 shadow-xl`}
-          >
+      <header className="relative z-10 p-4 sm:p-6 lg:p-10">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 min-w-0">
             <div
-              className={`w-full h-full ${
-                mode === 'moonlit' ? 'bg-indigo-950' : 'bg-white'
-              } rounded-[1.4rem] flex items-center justify-center`}
+              className={`w-10 h-10 sm:w-14 sm:h-14 lg:w-16 lg:h-16 shrink-0 rounded-2xl sm:rounded-3xl bg-gradient-to-tr ${t.gradient} p-0.5 sm:p-1 shadow-xl`}
             >
-              <Sparkles className="w-7 h-7 lg:w-8 lg:h-8 text-teal-500" />
+              <div
+                className={`w-full h-full ${
+                  mode === 'moonlit' ? 'bg-indigo-950' : 'bg-white'
+                } rounded-[0.8rem] sm:rounded-[1.4rem] flex items-center justify-center`}
+              >
+                <Sparkles className="w-5 h-5 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-teal-500" />
+              </div>
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl lg:text-3xl font-black italic tracking-tighter truncate">
+                AHANA&apos;S STUDIO
+              </h1>
+              <p className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${t.muted} hidden sm:block`}>
+                Ready to create something magic?
+              </p>
             </div>
           </div>
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-black italic tracking-tighter">
-              AHANA&apos;S STUDIO
-            </h1>
-            <p
-              className={`text-[10px] font-black uppercase tracking-widest ${t.muted}`}
-            >
-              Ready to create something magic?
-            </p>
-          </div>
-        </div>
 
-        <div className="flex gap-3 lg:gap-4">
-          <div
-            className={`${t.glass} px-4 lg:px-6 py-3 rounded-2xl flex items-center gap-3`}
-          >
-            <Award className="text-teal-500 w-5 h-5 lg:w-6 lg:h-6" />
-            <div className="text-right">
-              <p className="text-[10px] font-black opacity-60 uppercase tracking-widest leading-none">
-                Level
-              </p>
-              <p className="text-lg lg:text-xl font-black text-teal-700">{level}</p>
+          <div className="flex gap-2 sm:gap-3 lg:gap-4 shrink-0">
+            <div className={`${t.glass} px-2.5 sm:px-4 lg:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl flex items-center gap-2 sm:gap-3`}>
+              <Award className="text-teal-500 w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
+              <div className="text-right">
+                <p className="text-[8px] sm:text-[10px] font-black opacity-60 uppercase tracking-widest leading-none">Lvl</p>
+                <p className="text-sm sm:text-lg lg:text-xl font-black text-teal-700">{level}</p>
+              </div>
             </div>
-          </div>
-          <div
-            className={`${t.glass} px-4 lg:px-6 py-3 rounded-2xl flex items-center gap-3`}
-          >
-            <Sparkles className="text-violet-500 w-5 h-5 lg:w-6 lg:h-6" />
-            <div className="text-right">
-              <p className="text-[10px] font-black opacity-60 uppercase tracking-widest leading-none">
-                XP
-              </p>
-              <p className="text-lg lg:text-xl font-black text-violet-600">{totalXp}</p>
+            <div className={`${t.glass} px-2.5 sm:px-4 lg:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl flex items-center gap-2 sm:gap-3`}>
+              <Sparkles className="text-violet-500 w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
+              <div className="text-right">
+                <p className="text-[8px] sm:text-[10px] font-black opacity-60 uppercase tracking-widest leading-none">XP</p>
+                <p className="text-sm sm:text-lg lg:text-xl font-black text-violet-600">{totalXp}</p>
+              </div>
             </div>
+            <Link
+              href="/"
+              className={`bg-white/80 border ${t.border} p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl hover:bg-white transition backdrop-blur-xl shadow-sm flex items-center`}
+            >
+              <LogOut className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${t.muted}`} />
+            </Link>
           </div>
-          <Link
-            href="/"
-            className={`bg-white/80 border ${t.border} p-3 lg:p-4 rounded-2xl hover:bg-white transition backdrop-blur-xl shadow-sm flex items-center`}
-          >
-            <LogOut className={`w-5 h-5 lg:w-6 lg:h-6 ${t.muted}`} />
-          </Link>
         </div>
       </header>
 
       {/* Main Grid */}
-      <main className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 p-6 lg:p-10 pb-24 max-w-7xl mx-auto flex-1 content-start">
+      <main className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-10 px-4 sm:px-6 lg:px-10 pb-24 max-w-7xl mx-auto flex-1 content-start">
         {/* Capture Card */}
         <div className="lg:col-span-4 space-y-8">
           <div
-            className={`bg-gradient-to-br ${t.gradient} p-8 lg:p-10 rounded-[3rem] text-white shadow-2xl relative group overflow-hidden`}
+            className={`bg-gradient-to-br ${t.gradient} p-6 sm:p-8 lg:p-10 rounded-[2rem] sm:rounded-[3rem] text-white shadow-2xl relative overflow-hidden`}
           >
             <Sun className="absolute -top-10 -right-10 w-48 h-48 opacity-20 pointer-events-none" />
-            <h2 className="relative z-10 text-3xl lg:text-4xl font-black mb-2">Capture!</h2>
-            <p className="relative z-10 text-white/90 text-sm mb-8 font-medium">
+            <h2 className="relative z-10 text-2xl sm:text-3xl lg:text-4xl font-black mb-1 sm:mb-2">Capture!</h2>
+            <p className="relative z-10 text-white/90 text-xs sm:text-sm mb-4 sm:mb-8 font-medium">
               Add a new sketch, song, or story.
             </p>
-            <div className="relative z-10 grid grid-cols-2 gap-4">
+            <div className="relative z-10 grid grid-cols-2 gap-3 sm:gap-4">
               {CAPTURE_ACTIONS.map((act) => (
                 <button
                   key={act.label}
                   onClick={() => handleCapture(act.label)}
-                  className="bg-white/20 py-4 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-white/30 transition active:scale-95 shadow-sm cursor-pointer touch-action-manipulation select-none"
+                  className="bg-white/20 py-5 sm:py-4 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center gap-1.5 hover:bg-white/30 transition active:scale-95 shadow-sm cursor-pointer select-none"
                   style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                 >
-                  <act.icon className="w-6 h-6" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">
+                  <act.icon className="w-7 h-7 sm:w-6 sm:h-6" />
+                  <span className="text-xs sm:text-[10px] font-black uppercase tracking-widest">
                     {act.label}
                   </span>
                 </button>
@@ -345,7 +337,7 @@ export default function HubPage() {
         {/* Creative Quest */}
         <div className="lg:col-span-5">
           <div
-            className={`${t.glass} p-8 lg:p-10 rounded-[3.5rem] h-full flex flex-col`}
+            className={`${t.glass} p-5 sm:p-8 lg:p-10 rounded-[2rem] sm:rounded-[3.5rem] h-full flex flex-col`}
           >
             <h3 className={`text-2xl font-black italic mb-8 ${t.text}`}>
               Creative Quest
@@ -355,7 +347,7 @@ export default function HubPage() {
                 <div
                   key={m.id}
                   onClick={() => toggleMission(m.id)}
-                  className={`p-5 rounded-2xl border ${
+                  className={`p-3 sm:p-5 rounded-xl sm:rounded-2xl border ${
                     m.done
                       ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
                       : 'bg-slate-50 border-transparent text-slate-800'
@@ -377,7 +369,7 @@ export default function HubPage() {
                       {m.text}
                     </span>
                   </div>
-                  <span className={`text-[10px] font-black ${m.done ? 'text-emerald-500' : 'opacity-60'}`}>
+                  <span className={`text-xs sm:text-[10px] font-black whitespace-nowrap ${m.done ? 'text-emerald-500' : 'opacity-60'}`}>
                     +{m.xp} XP
                   </span>
 
@@ -400,7 +392,7 @@ export default function HubPage() {
                 <p className="text-xs font-bold text-sky-900">
                   Space Challenge
                 </p>
-                <p className="text-[10px] font-medium text-sky-700">
+                <p className="text-xs sm:text-[10px] font-medium text-sky-700">
                   Why do the stars twinkle?
                 </p>
               </div>

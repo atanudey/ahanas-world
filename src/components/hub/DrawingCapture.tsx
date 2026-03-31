@@ -195,55 +195,52 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
+      <div className="space-y-2 mb-4">
         {/* Colors */}
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 flex-wrap">
           {COLORS.map((c) => (
             <button
               key={c}
               onClick={() => { setColor(c); setIsEraser(false); }}
-              className={`w-7 h-7 rounded-full border-2 transition ${
+              className={`w-8 h-8 sm:w-7 sm:h-7 rounded-full border-2 transition ${
                 color === c && !isEraser ? 'border-slate-800 scale-110' : 'border-transparent'
               }`}
-              style={{ backgroundColor: c }}
+              style={{ backgroundColor: c, touchAction: 'manipulation' }}
             />
           ))}
         </div>
 
-        <div className="w-px h-6 bg-slate-200" />
-
-        {/* Brush Sizes */}
-        <div className="flex gap-1">
+        {/* Brush Sizes + Tools */}
+        <div className="flex items-center gap-1.5">
           {BRUSH_SIZES.map(({ label, size }) => (
             <button
               key={label}
               onClick={() => setBrushSize(size)}
-              className={`w-7 h-7 rounded-lg text-[10px] font-black transition ${
+              className={`w-8 h-8 sm:w-7 sm:h-7 rounded-lg text-xs sm:text-[10px] font-black transition ${
                 brushSize === size && !isEraser ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500'
               }`}
+              style={{ touchAction: 'manipulation' }}
             >
               {label}
             </button>
           ))}
+          <div className="w-px h-6 bg-slate-200 mx-1" />
+          <button
+            onClick={() => setIsEraser(!isEraser)}
+            className={`w-8 h-8 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center transition ${
+              isEraser ? 'bg-pink-100 text-pink-600' : 'bg-slate-100 text-slate-500'
+            }`}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <Eraser className="w-4 h-4" />
+          </button>
+          <button onClick={undo} className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition" style={{ touchAction: 'manipulation' }}>
+            <Undo2 className="w-4 h-4" />
+          </button>
+          <button onClick={clearCanvas} className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition" style={{ touchAction: 'manipulation' }}>
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
-
-        <div className="w-px h-6 bg-slate-200" />
-
-        {/* Tools */}
-        <button
-          onClick={() => setIsEraser(!isEraser)}
-          className={`w-7 h-7 rounded-lg flex items-center justify-center transition ${
-            isEraser ? 'bg-pink-100 text-pink-600' : 'bg-slate-100 text-slate-500'
-          }`}
-        >
-          <Eraser className="w-4 h-4" />
-        </button>
-        <button onClick={undo} className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition">
-          <Undo2 className="w-4 h-4" />
-        </button>
-        <button onClick={clearCanvas} className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition">
-          <Trash2 className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Submit */}
