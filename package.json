@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 5000 -H 0.0.0.0 --webpack",
+    "dev": "./scripts/dev.sh",
+    "dev:http": "./scripts/dev.sh --http",
+    "dev:https": "./scripts/dev.sh --https",
     "build": "next build",
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "eslint",
