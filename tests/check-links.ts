@@ -15,7 +15,7 @@ const queue: { url: string; foundOn: string }[] = [];
 
 const SEED_PATHS = ['/', '/hub', '/music', '/art', '/reading', '/space', '/milestones', '/parent/login'];
 
-async function checkUrl(url: string, foundOn: string, type: string): Promise<number> {
+async function checkUrl(url: string): Promise<number> {
   try {
     const res = await fetch(url, { method: 'HEAD', redirect: 'follow' });
     return res.status;
@@ -84,7 +84,7 @@ async function crawlPage(pageUrl: string): Promise<void> {
       const full = normalize(src);
       if (!visited.has(full)) {
         visited.add(full);
-        const status = await checkUrl(full, pageUrl, 'asset');
+        const status = await checkUrl(full);
         if (status >= 400 || status === 0) {
           broken.push({ url: src, status, foundOn: pageUrl, type: 'asset' });
         }
@@ -103,7 +103,7 @@ async function main() {
   }
 
   while (queue.length > 0) {
-    const { url, foundOn } = queue.shift()!;
+    const { url } = queue.shift()!;
     const full = normalize(url);
     if (visited.has(full)) continue;
     process.stdout.write(`  Checking ${url}...`);

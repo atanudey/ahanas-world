@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import {
-  X, Check, AlertTriangle, RotateCcw, Trash2,
+  X, Check, RotateCcw, Trash2,
   Eye, EyeOff, ExternalLink, Clock, Play, Pause,
 } from 'lucide-react';
 import { getMediaUrl, getThumbnailUrl } from '@/lib/utils/storage';
@@ -146,7 +146,7 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
                 <img src={mediaUrl} alt={content.title} className="w-full h-56 object-cover" />
               )}
               {content.media_type?.startsWith('video/') && (
-                <video src={mediaUrl} controls playsInline preload="metadata" className="w-full h-56 object-cover" />
+                <video src={mediaUrl} poster={thumbUrl ?? undefined} controls playsInline preload="metadata" className="w-full h-56 object-cover" />
               )}
               {content.media_type?.startsWith('audio/') && (
                 <div className="p-6 flex items-center gap-4">

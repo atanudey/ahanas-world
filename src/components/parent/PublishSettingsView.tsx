@@ -330,6 +330,10 @@ export function PublishSettingsView({ t }: { t: Theme }) {
                   </div>
                 </div>
                 {hasFbCreds ? (
+                  // Full-page navigation is required: this API route issues a
+                  // server-side redirect into Facebook's OAuth flow. next/link
+                  // would attempt a client-side transition and break the redirect.
+                  // eslint-disable-next-line @next/next/no-html-link-for-pages
                   <a
                     href="/api/settings/oauth/facebook"
                     className="px-4 py-2 rounded-xl bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 transition"
@@ -385,6 +389,10 @@ export function PublishSettingsView({ t }: { t: Theme }) {
                   </div>
                 </div>
                 {hasGoogleCreds ? (
+                  // Full-page navigation is required: this API route issues a
+                  // server-side redirect into Google's OAuth flow. next/link
+                  // would attempt a client-side transition and break the redirect.
+                  // eslint-disable-next-line @next/next/no-html-link-for-pages
                   <a
                     href="/api/settings/oauth/google"
                     className="px-4 py-2 rounded-xl bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition"

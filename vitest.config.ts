@@ -12,17 +12,21 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'text-summary', 'lcov'],
-      include: ['src/**/*.{ts,tsx}'],
+      // Coverage targets the unit-testable logic layer. UI components and pages
+      // (src/components, src/app) are exercised by the Playwright E2E suite, and
+      // would otherwise drown out meaningful coverage signal here.
+      include: ['src/lib/**/*.ts', 'src/context/**/*.tsx'],
       exclude: [
-        'src/app/**/loading.tsx',
-        'src/app/**/error.tsx',
-        'src/components/minecraft/**',
+        'src/lib/types/**', // type-only declarations
+        'src/lib/social/types.ts', // type-only declarations
+        'src/lib/supabase/**', // thin Supabase SDK client wrappers (need a live backend)
+        'src/lib/utils/compress.ts', // browser Canvas/Image APIs — covered by E2E, not jsdom
       ],
       thresholds: {
-        statements: 50,
-        branches: 40,
-        functions: 40,
-        lines: 50,
+        statements: 80,
+        branches: 70,
+        functions: 75,
+        lines: 80,
       },
     },
   },
