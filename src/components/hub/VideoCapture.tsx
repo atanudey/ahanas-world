@@ -35,6 +35,9 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Preview URL must be state (not a ref) so the captured/recorded preview
+  // renders reliably — reading a ref during render does not trigger re-renders.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -44,7 +47,13 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const blobRef = useRef<Blob | null>(null);
   const thumbRef = useRef<Blob | null>(null);
-  const previewUrlRef = useRef<string | null>(null);
+
+  // Revoke the previous object URL whenever it changes or on unmount to avoid leaks.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const stopStream = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -146,7 +155,7 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
         if (!blob) return;
         blobRef.current = blob;
         thumbRef.current = blob;
-        previewUrlRef.current = URL.createObjectURL(blob);
+        setPreviewUrl(URL.createObjectURL(blob));
         stopStream();
         setCaptureState('recorded');
       },
@@ -169,7 +178,7 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: mimeType });
       blobRef.current = blob;
-      previewUrlRef.current = URL.createObjectURL(blob);
+      setPreviewUrl(URL.createObjectURL(blob));
 
       // Generate thumbnail from first frame
       const video = videoRef.current;
@@ -210,8 +219,8 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
   const retake = useCallback(() => {
     blobRef.current = null;
     thumbRef.current = null;
-    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-    previewUrlRef.current = null;
+    // The cleanup effect on previewUrl revokes the old object URL.
+    setPreviewUrl(null);
     setElapsed(0);
     startCamera();
   }, [startCamera]);
@@ -288,12 +297,12 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
             className="w-full h-full object-cover"
           />
         )}
-        {captureState === 'recorded' && previewUrlRef.current && (
+        {captureState === 'recorded' && previewUrl && (
           mode === 'photo' ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrlRef.current} alt="Captured" className="w-full h-full object-cover" />
+            <img src={previewUrl} alt="Captured" className="w-full h-full object-cover" />
           ) : (
-            <video src={previewUrlRef.current} controls playsInline className="w-full h-full object-cover" />
+            <video src={previewUrl} controls playsInline className="w-full h-full object-cover" />
           )
         )}
 

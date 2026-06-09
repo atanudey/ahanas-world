@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Plus, Clock, AlertTriangle, Settings } from 'lucide-react';
 import type { Theme } from '@/lib/theme';
 import { getThumbnailUrl } from '@/lib/utils/storage';
-import { MOCK_CONTENT } from '@/lib/constants';
 
 const PRACTICE_DATA = [
   { type: 'Singing', current: 4, goal: 5 },

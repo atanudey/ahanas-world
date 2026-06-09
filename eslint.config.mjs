@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Static design mockups / prototypes — not imported, built, or typechecked.
+    // They are kept as visual references only, so they are excluded from linting.
+    "design.jsx",
+    "theme/**/*.jsx",
   ]),
 ]);
 

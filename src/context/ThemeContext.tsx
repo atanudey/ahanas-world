@@ -1,6 +1,13 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { THEMES, THEME_ORDER, type ThemeMode, type Theme } from '@/lib/theme';
 
 interface ThemeContextValue {
@@ -12,46 +19,57 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+const STORAGE_KEY = 'ahanas-theme';
+const DEFAULT_MODE: ThemeMode = 'moonlit';
+
 function getStoredTheme(): ThemeMode {
-  if (typeof window === 'undefined') return 'moonlit';
-  const stored = localStorage.getItem('ahanas-theme');
+  if (typeof window === 'undefined') return DEFAULT_MODE;
+  const stored = localStorage.getItem(STORAGE_KEY);
   if (stored && THEME_ORDER.includes(stored as ThemeMode)) {
     return stored as ThemeMode;
   }
-  return 'moonlit';
+  return DEFAULT_MODE;
+}
+
+// Same-tab subscribers are notified manually because the `storage` event only
+// fires in *other* tabs. This lets the theme act as an external store, which
+// keeps reads hydration-safe (no setState-in-effect / cascading renders).
+const listeners = new Set<() => void>();
+
+function subscribe(onChange: () => void): () => void {
+  listeners.add(onChange);
+  window.addEventListener('storage', onChange);
+  return () => {
+    listeners.delete(onChange);
+    window.removeEventListener('storage', onChange);
+  };
+}
+
+function persistTheme(mode: ThemeMode) {
+  localStorage.setItem(STORAGE_KEY, mode);
+  listeners.forEach((l) => l());
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>('moonlit');
-  const [mounted, setMounted] = useState(false);
+  const mode = useSyncExternalStore(subscribe, getStoredTheme, () => DEFAULT_MODE);
 
-  // Load stored theme on mount
+  // Reflect the active theme onto <html> for Minecraft CSS hooks.
   useEffect(() => {
-    setMode(getStoredTheme());
-    setMounted(true);
-  }, []);
-
-  // Set data-theme attribute on <html> for Minecraft CSS hooks
-  useEffect(() => {
-    if (!mounted) return;
     const html = document.documentElement;
     if (mode === 'minecraft') {
       html.setAttribute('data-theme', 'minecraft');
     } else {
       html.removeAttribute('data-theme');
     }
-    localStorage.setItem('ahanas-theme', mode);
-  }, [mode, mounted]);
+  }, [mode]);
 
   const toggle = useCallback(() => {
-    setMode((prev) => {
-      const idx = THEME_ORDER.indexOf(prev);
-      return THEME_ORDER[(idx + 1) % THEME_ORDER.length];
-    });
+    const idx = THEME_ORDER.indexOf(getStoredTheme());
+    persistTheme(THEME_ORDER[(idx + 1) % THEME_ORDER.length]);
   }, []);
 
   const setTheme = useCallback((m: ThemeMode) => {
-    setMode(m);
+    persistTheme(m);
   }, []);
 
   const value: ThemeContextValue = {

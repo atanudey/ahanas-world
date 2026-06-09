@@ -41,9 +41,8 @@ test.describe('Auth: PIN System', () => {
     await page.locator('button[type="submit"]').click();
     // Should show error (either "Incorrect PIN" or setup flow)
     await page.waitForTimeout(1000);
-    // If PIN is configured, expect error; if first-time, it'll proceed to confirm
-    const errorOrConfirm = page.locator('text=Incorrect PIN, text=Confirm');
-    // We just check the page didn't crash
+    // Whether PIN is configured (shows error) or first-time (proceeds to confirm),
+    // the app should stay on the parent login route without crashing.
     await expect(page).toHaveURL(/parent/);
   });
 

@@ -62,7 +62,6 @@ export default function ParentLoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pin: isFirstTime ? confirmPin : pin,
-          action: isFirstTime ? 'set' : undefined,
         }),
       });
       const data = await res.json();

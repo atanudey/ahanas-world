@@ -5,7 +5,7 @@ import {
   Sparkles, Award, Rocket, Music, Palette,
   Sun, Mic, Camera, PenTool, Book,
   CheckCircle2, ChevronRight, LogOut,
-  X, Wand2, Trophy, Gamepad2,
+  X, Trophy, Gamepad2,
   Upload, Check, AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
