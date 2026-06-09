@@ -1,28 +1,32 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseAdmin } from '@/lib/supabase/server';
+import { hashPin, verifyPin } from '@/lib/auth/pin';
+import { createSessionToken, SESSION_COOKIE, SESSION_TTL_SECONDS } from '@/lib/auth/session';
 
-async function hashPin(pin: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(pin);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function generateSessionToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
+function setSessionCookie(response: NextResponse, token: string): NextResponse {
+  response.cookies.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: SESSION_TTL_SECONDS,
+    path: '/',
+  });
+  return response;
 }
 
 /**
  * POST /api/auth/verify-pin
- * Verifies or sets the admin PIN.
- * Body: { pin: "1234" } or { pin: "1234", action: "set" }
+ * - First-time setup (no PIN configured): sets the PIN and signs the admin in.
+ * - Otherwise: verifies the PIN and signs the admin in.
+ *
+ * Security: this endpoint is intentionally public so the admin can perform the
+ * very first setup. Once a PIN exists it can ONLY be verified here, never
+ * overwritten — changing the PIN requires an authenticated request to
+ * PATCH /api/settings. (Previously `action: "set"` let anyone reset the PIN.)
  */
 export async function POST(request: Request) {
   try {
-    const { pin, action } = await request.json();
+    const { pin } = await request.json();
 
     if (!pin || typeof pin !== 'string' || pin.length < 4) {
       return NextResponse.json({ error: 'PIN must be at least 4 digits' }, { status: 400 });
@@ -35,46 +39,30 @@ export async function POST(request: Request) {
       .eq('id', 1)
       .single();
 
-    const pinHash = await hashPin(pin);
+    const isFirstTime = !settings?.admin_pin_hash;
 
-    // First-time setup: no PIN configured yet
-    if (!settings?.admin_pin_hash || action === 'set') {
-      // If a PIN already exists and action is 'set', verify we're authenticated
-      // (the middleware will handle this for the settings routes)
-      if (!settings?.admin_pin_hash || action === 'set') {
-        await supabase
-          .from('parent_settings')
-          .update({ admin_pin_hash: pinHash })
-          .eq('id', 1);
+    if (isFirstTime) {
+      // First-time setup — store the PIN and start a session.
+      await supabase
+        .from('parent_settings')
+        .update({ admin_pin_hash: await hashPin(pin) })
+        .eq('id', 1);
 
-        const token = generateSessionToken();
-        const response = NextResponse.json({ success: true, firstTime: !settings?.admin_pin_hash });
-        response.cookies.set('ahanas_admin_session', token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 60 * 60 * 24, // 24 hours
-          path: '/',
-        });
-        return response;
-      }
+      const token = await createSessionToken();
+      return setSessionCookie(
+        NextResponse.json({ success: true, firstTime: true }),
+        token,
+      );
     }
 
-    // Verify PIN
-    if (pinHash !== settings.admin_pin_hash) {
+    // Existing PIN — verify in constant time.
+    const ok = await verifyPin(pin, settings.admin_pin_hash);
+    if (!ok) {
       return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 });
     }
 
-    const token = generateSessionToken();
-    const response = NextResponse.json({ success: true });
-    response.cookies.set('ahanas_admin_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24, // 24 hours
-      path: '/',
-    });
-    return response;
+    const token = await createSessionToken();
+    return setSessionCookie(NextResponse.json({ success: true }), token);
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -93,9 +81,7 @@ export async function GET() {
       .eq('id', 1)
       .single();
 
-    return NextResponse.json({
-      pinConfigured: !!data?.admin_pin_hash,
-    });
+    return NextResponse.json({ pinConfigured: !!data?.admin_pin_hash });
   } catch {
     return NextResponse.json({ pinConfigured: false });
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseAdmin } from '@/lib/supabase/server';
+import { hashPin } from '@/lib/auth/pin';
 
 /** Mask a secret string, showing only the last 4 characters. */
 function maskSecret(value: string | null | undefined): string {
@@ -73,14 +74,10 @@ export async function PATCH(request: Request) {
       }
     }
 
-    // Handle admin PIN separately — hash before storing
+    // Handle admin PIN separately — hash before storing. This authenticated route
+    // is the only way to *change* an existing PIN.
     if ('admin_pin' in body && typeof body.admin_pin === 'string' && body.admin_pin.length >= 4) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(body.admin_pin);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      updates.admin_pin_hash = hashHex;
+      updates.admin_pin_hash = await hashPin(body.admin_pin);
     }
 
     if (Object.keys(updates).length === 0) {

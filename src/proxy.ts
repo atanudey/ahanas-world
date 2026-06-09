@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth/session';
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes — no auth needed
@@ -22,15 +23,16 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protected routes — require session cookie
+  // Protected routes — require a valid, signed, unexpired session token.
   const isProtected =
     pathname.startsWith('/parent') ||
     pathname.startsWith('/api/settings') ||
     pathname.startsWith('/api/content');
 
   if (isProtected) {
-    const session = request.cookies.get('ahanas_admin_session');
-    if (!session?.value) {
+    const token = request.cookies.get(SESSION_COOKIE)?.value;
+    const valid = await verifySessionToken(token);
+    if (!valid) {
       // API routes get 401
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
