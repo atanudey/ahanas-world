@@ -6,11 +6,13 @@ import {
 } from 'lucide-react';
 import { ViewSwitcher } from '@/components/shared/ViewSwitcher';
 
-const CAPTURE_ACTIONS = [
-  { icon: Mic, label: 'Sing' },
-  { icon: Camera, label: 'Photo' },
-  { icon: PenTool, label: 'Draw' },
-  { icon: Book, label: 'Read' },
+export type MinecraftCaptureType = 'Sing' | 'Show' | 'Draw' | 'Read';
+
+const CAPTURE_ACTIONS: { icon: typeof Mic; label: string; capture: MinecraftCaptureType }[] = [
+  { icon: Mic, label: 'Sing', capture: 'Sing' },
+  { icon: Camera, label: 'Photo', capture: 'Show' },
+  { icon: PenTool, label: 'Draw', capture: 'Draw' },
+  { icon: Book, label: 'Read', capture: 'Read' },
 ];
 
 const MISSIONS = [
@@ -43,7 +45,7 @@ const MOBS = [
   { src: '/mobs/cat.png', alt: 'Kitten', className: 'bottom-[25%] left-[1%]', height: 'h-7 lg:h-10', delay: '2s' },
 ];
 
-export function MinecraftHub() {
+export function MinecraftHub({ onCapture }: { onCapture?: (type: MinecraftCaptureType) => void }) {
   return (
     <div className="mc-bg mc-font h-screen text-white relative overflow-hidden flex flex-col">
       <div className="mc-overlay" />
@@ -106,6 +108,7 @@ export function MinecraftHub() {
                 {CAPTURE_ACTIONS.map((act) => (
                   <button
                     key={act.label}
+                    onClick={() => onCapture?.(act.capture)}
                     className="mc-wood-block p-2.5 flex flex-col items-center justify-center gap-1.5 hover:brightness-110"
                   >
                     <div className="mc-inventory-slot p-1.5">

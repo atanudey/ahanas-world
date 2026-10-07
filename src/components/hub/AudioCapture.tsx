@@ -34,6 +34,10 @@ export function AudioCapture({ onComplete, onCancel }: AudioCaptureProps) {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  // The recording's object URL. State (not set imperatively on a ref) because
+  // the <audio> element only mounts once the preview renders.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -42,27 +46,49 @@ export function AudioCapture({ onComplete, onCancel }: AudioCaptureProps) {
   const blobRef = useRef<Blob | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const animFrameRef = useRef<number>(0);
+  // Bumped on unmount so a microphone grant that resolves afterwards is released.
+  const requestIdRef = useRef(0);
 
-  const cleanup = useCallback(() => {
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const releaseInputs = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    mediaRecorderRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    // Browsers cap open AudioContexts, so each recording must close its own.
+    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current = null;
+    analyserRef.current = null;
   }, []);
 
-  useEffect(() => () => cleanup(), [cleanup]);
+  useEffect(() => {
+    return () => {
+      // A counter, not a DOM ref — bumping it is exactly what cleanup should do.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      requestIdRef.current++;
+      const recorder = mediaRecorderRef.current;
+      if (recorder) {
+        recorder.onstop = null;
+        if (recorder.state !== 'inactive') recorder.stop();
+      }
+      releaseInputs();
+    };
+  }, [releaseInputs]);
 
-  const drawWaveform = useCallback(() => {
+  // The canvas only exists while recording, so start drawing once it's mounted.
+  useEffect(() => {
+    if (state !== 'recording') return;
     const analyser = analyserRef.current;
     const canvas = canvasRef.current;
-    if (!analyser || !canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const ctx = canvas?.getContext('2d');
+    if (!analyser || !canvas || !ctx) return;
 
     const bufLen = analyser.frequencyBinCount;
     const data = new Uint8Array(bufLen);
@@ -91,16 +117,23 @@ export function AudioCapture({ onComplete, onCancel }: AudioCaptureProps) {
       ctx.stroke();
     };
     draw();
-  }, []);
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [state]);
 
   const startRecording = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     try {
       setError(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (requestId !== requestIdRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
 
       // Set up analyser for waveform
       const audioCtx = new AudioContext();
+      audioCtxRef.current = audioCtx;
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
@@ -119,12 +152,9 @@ export function AudioCapture({ onComplete, onCancel }: AudioCaptureProps) {
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: mimeType });
         blobRef.current = blob;
-
-        if (audioRef.current) {
-          audioRef.current.src = URL.createObjectURL(blob);
-        }
+        setPreviewUrl(URL.createObjectURL(blob));
         setState('preview');
-        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+        releaseInputs();
       };
 
       recorder.start(250);
@@ -134,29 +164,30 @@ export function AudioCapture({ onComplete, onCancel }: AudioCaptureProps) {
       timerRef.current = setInterval(() => {
         setElapsed((prev) => {
           if (prev + 100 >= MAX_DURATION_MS) {
-            recorder.stop();
             if (timerRef.current) clearInterval(timerRef.current);
-            stream.getTracks().forEach((t) => t.stop());
+            if (recorder.state !== 'inactive') recorder.stop();
             return MAX_DURATION_MS;
           }
           return prev + 100;
         });
       }, 100);
-
-      drawWaveform();
     } catch {
+      releaseInputs();
       setError('Could not access microphone. Please allow microphone access and try again.');
     }
-  }, [drawWaveform]);
+  }, [releaseInputs]);
 
   const stopRecording = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
-    mediaRecorderRef.current?.stop();
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
   }, []);
 
   const reRecord = useCallback(() => {
+    audioRef.current?.pause();
     blobRef.current = null;
+    // The previewUrl effect revokes the old object URL.
+    setPreviewUrl(null);
     setIsPlaying(false);
     setState('idle');
     setElapsed(0);
@@ -165,13 +196,13 @@ export function AudioCapture({ onComplete, onCancel }: AudioCaptureProps) {
   const togglePlayback = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (isPlaying) {
-      audio.pause();
+    // isPlaying follows the element's own play/pause events.
+    if (audio.paused) {
+      audio.play().catch(() => setError('Could not play the recording.'));
     } else {
-      audio.play();
+      audio.pause();
     }
-    setIsPlaying(!isPlaying);
-  }, [isPlaying]);
+  }, []);
 
   const handleSubmit = useCallback(() => {
     if (!blobRef.current || !title.trim()) return;
@@ -196,6 +227,7 @@ export function AudioCapture({ onComplete, onCancel }: AudioCaptureProps) {
     <div className="bg-white rounded-[2.5rem] p-6 lg:p-8 shadow-2xl max-w-md w-full mx-4 relative">
       <button
         onClick={onCancel}
+        aria-label="Close"
         className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition"
       >
         <X className="w-4 h-4 text-slate-500" />
@@ -254,6 +286,7 @@ export function AudioCapture({ onComplete, onCancel }: AudioCaptureProps) {
           <div className="flex items-center gap-3 mb-5 bg-slate-50 p-4 rounded-2xl">
             <button
               onClick={togglePlayback}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
               className="w-10 h-10 rounded-full bg-teal-500 text-white flex items-center justify-center hover:bg-teal-600 transition"
             >
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
@@ -266,21 +299,33 @@ export function AudioCapture({ onComplete, onCancel }: AudioCaptureProps) {
               onClick={reRecord}
               className="p-2 rounded-xl hover:bg-slate-200 transition text-slate-500"
               title="Re-record"
+              aria-label="Re-record"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
           </div>
 
-          <audio ref={audioRef} onEnded={() => setIsPlaying(false)} className="hidden" />
+          {previewUrl && (
+            <audio
+              ref={audioRef}
+              src={previewUrl}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onEnded={() => setIsPlaying(false)}
+              className="hidden"
+            />
+          )}
 
           <input
             type="text"
+            aria-label="Title"
             placeholder="Give your melody a name..."
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-400 transition mb-3"
           />
           <textarea
+            aria-label="Story"
             placeholder="What inspired this? Tell the story..."
             rows={2}
             value={notes}

@@ -22,11 +22,20 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const STORAGE_KEY = 'ahanas-theme';
 const DEFAULT_MODE: ThemeMode = 'moonlit';
 
+// Fallback when storage is unavailable (blocked cookies, some private modes),
+// so switching themes still works for the session instead of crashing render.
+let memoryMode: ThemeMode | null = null;
+
 function getStoredTheme(): ThemeMode {
   if (typeof window === 'undefined') return DEFAULT_MODE;
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored && THEME_ORDER.includes(stored as ThemeMode)) {
-    return stored as ThemeMode;
+  if (memoryMode) return memoryMode;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored && THEME_ORDER.includes(stored as ThemeMode)) {
+      return stored as ThemeMode;
+    }
+  } catch {
+    // Storage blocked — use the default.
   }
   return DEFAULT_MODE;
 }
@@ -46,7 +55,12 @@ function subscribe(onChange: () => void): () => void {
 }
 
 function persistTheme(mode: ThemeMode) {
-  localStorage.setItem(STORAGE_KEY, mode);
+  try {
+    localStorage.setItem(STORAGE_KEY, mode);
+    memoryMode = null;
+  } catch {
+    memoryMode = mode;
+  }
   listeners.forEach((l) => l());
 }
 

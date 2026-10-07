@@ -53,56 +53,80 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
   const mediaUrl = content.media_path ? getMediaUrl(content.media_path) : null;
   const thumbUrl = content.thumbnail_path ? getThumbnailUrl(content.thumbnail_path) : null;
 
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  /** fetch that throws with the API's error message on a non-2xx response. */
+  const callApi = useCallback(async (url: string, init?: RequestInit) => {
+    const res = await fetch(url, init);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Request failed (${res.status})`);
+    }
+  }, []);
+
   const saveChanges = useCallback(async () => {
     setSaving(true);
+    setActionError(null);
     try {
-      await fetch(`/api/content/${content.id}`, {
+      await callApi(`/api/content/${content.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, description, story }),
       });
       onUpdate();
+    } catch (err) {
+      setActionError((err as Error).message);
     } finally {
       setSaving(false);
     }
-  }, [content.id, title, description, story, onUpdate]);
+  }, [content.id, title, description, story, onUpdate, callApi]);
 
-  const approve = useCallback(async () => {
+  // Used for both Approve and Retry — the server only re-sends to platforms
+  // that haven't got the post yet.
+  const publish = useCallback(async () => {
     setPublishing(true);
+    setActionError(null);
     try {
-      await fetch(`/api/content/${content.id}/publish`, { method: 'POST' });
+      await callApi(`/api/content/${content.id}/publish`, { method: 'POST' });
       onUpdate();
+    } catch (err) {
+      // Keep the panel open (onUpdate closes it) so the error stays visible.
+      setActionError((err as Error).message);
     } finally {
       setPublishing(false);
     }
-  }, [content.id, onUpdate]);
+  }, [content.id, onUpdate, callApi]);
 
   const toggleVisibility = useCallback(async () => {
-    await fetch(`/api/content/${content.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        visibility: content.visibility === 'public' ? 'private' : 'public',
-      }),
-    });
-    onUpdate();
-  }, [content.id, content.visibility, onUpdate]);
-
-  const retryPlatform = useCallback(async () => {
-    await fetch(`/api/content/${content.id}/publish`, { method: 'POST' });
-    onUpdate();
-  }, [content.id, onUpdate]);
+    setActionError(null);
+    try {
+      await callApi(`/api/content/${content.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visibility: content.visibility === 'public' ? 'private' : 'public',
+        }),
+      });
+      onUpdate();
+    } catch (err) {
+      setActionError((err as Error).message);
+    }
+  }, [content.id, content.visibility, onUpdate, callApi]);
 
   const deleteContent = useCallback(async () => {
     setDeleting(true);
+    setActionError(null);
     try {
-      await fetch(`/api/content/${content.id}`, { method: 'DELETE' });
+      await callApi(`/api/content/${content.id}`, { method: 'DELETE' });
       onUpdate();
       onClose();
+    } catch (err) {
+      setActionError((err as Error).message);
+      setShowDeleteConfirm(false);
     } finally {
       setDeleting(false);
     }
-  }, [content.id, onUpdate, onClose]);
+  }, [content.id, onUpdate, onClose, callApi]);
 
   const platformIcon = (platform: string) => {
     switch (platform) {
@@ -132,7 +156,7 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-100 p-5 flex items-center justify-between z-10">
           <h3 className="font-black text-lg text-slate-800">Content Details</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition">
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition">
             <X className="w-4 h-4 text-slate-500" />
           </button>
         </div>
@@ -225,9 +249,15 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
           </div>
 
           {/* Approve / Publish */}
-          {content.status === 'review_needed' && (
+          {actionError && (
+            <p role="alert" className="text-sm font-medium text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+              {actionError}
+            </p>
+          )}
+
+          {(content.status === 'review_needed' || content.status === 'failed') && (
             <button
-              onClick={approve}
+              onClick={publish}
               disabled={publishing}
               className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
@@ -256,12 +286,17 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
                     </div>
                     <div className="flex items-center gap-2">
                       {post.status === 'published' && post.platform_url && (
-                        <a href={post.platform_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-slate-200 transition">
+                        <a href={post.platform_url} target="_blank" rel="noopener noreferrer" aria-label={`View on ${post.platform}`} className="p-1.5 rounded-lg hover:bg-slate-200 transition">
                           <ExternalLink className="w-3 h-3 text-slate-500" />
                         </a>
                       )}
                       {post.status === 'failed' && (
-                        <button onClick={retryPlatform} className="p-1.5 rounded-lg hover:bg-slate-200 transition text-amber-600">
+                        <button
+                          onClick={publish}
+                          disabled={publishing}
+                          aria-label={`Retry ${post.platform}`}
+                          className="p-1.5 rounded-lg hover:bg-slate-200 transition text-amber-600 disabled:opacity-50"
+                        >
                           <RotateCcw className="w-3 h-3" />
                         </button>
                       )}
@@ -293,6 +328,7 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
             {!showDeleteConfirm ? (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
+                aria-label="Delete"
                 className="py-2.5 px-4 rounded-xl border border-red-200 text-sm font-bold text-red-500 hover:bg-red-50 transition"
               >
                 <Trash2 className="w-4 h-4" />

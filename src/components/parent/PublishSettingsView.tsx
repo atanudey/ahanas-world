@@ -136,22 +136,26 @@ export function PublishSettingsView({ t }: { t: Theme }) {
   const hasFbCreds = !!credForm.facebook_app_id && (!!credForm.facebook_app_secret || editingSecrets.facebook_app_secret);
   const hasGoogleCreds = !!credForm.google_client_id && (!!credForm.google_client_secret || editingSecrets.google_client_secret);
 
-  const ToggleButton = ({ enabled, onToggle, label }: { enabled: boolean; onToggle: () => void; label: string }) => (
+  // Render helpers, called as functions rather than mounted as <Components />:
+  // a component defined inside render is a new type every render, so React
+  // remounted the inputs on each keystroke and focus was lost.
+  const renderToggleButton = ({ enabled, onToggle, label }: { enabled: boolean; onToggle: () => void; label: string }) => (
     <button onClick={onToggle} disabled={saving} className="flex items-center justify-between w-full py-4">
       <span className={`text-sm font-bold ${t.text}`}>{label}</span>
       {enabled ? <ToggleRight className="w-8 h-8 text-emerald-500" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
     </button>
   );
 
-  const SecretField = ({ label, name, value }: { label: string; name: string; value: string }) => {
+  const renderSecretField = ({ label, name, value }: { label: string; name: string; value: string }) => {
     const isEditing = editingSecrets[name];
     const isVisible = showSecrets[name];
 
     return (
       <div>
-        <label className={`text-xs font-bold uppercase tracking-widest ${t.muted} mb-2 block`}>{label}</label>
+        <label htmlFor={name} className={`text-xs font-bold uppercase tracking-widest ${t.muted} mb-2 block`}>{label}</label>
         <div className="relative">
           <input
+            id={name}
             type={isVisible ? 'text' : 'password'}
             value={isEditing ? credForm[name as keyof typeof credForm] : value}
             onChange={(e) => {
@@ -172,6 +176,7 @@ export function PublishSettingsView({ t }: { t: Theme }) {
             <button
               type="button"
               onClick={() => setShowSecrets({ ...showSecrets, [name]: !isVisible })}
+              aria-label={isVisible ? `Hide ${label}` : `Show ${label}`}
               className={`p-1.5 rounded-lg ${t.muted} hover:bg-black/5 transition`}
             >
               {isVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -194,10 +199,11 @@ export function PublishSettingsView({ t }: { t: Theme }) {
     );
   };
 
-  const TextField = ({ label, name, placeholder }: { label: string; name: string; placeholder: string }) => (
+  const renderTextField = ({ label, name, placeholder }: { label: string; name: string; placeholder: string }) => (
     <div>
-      <label className={`text-xs font-bold uppercase tracking-widest ${t.muted} mb-2 block`}>{label}</label>
+      <label htmlFor={name} className={`text-xs font-bold uppercase tracking-widest ${t.muted} mb-2 block`}>{label}</label>
       <input
+        id={name}
         type="text"
         value={credForm[name as keyof typeof credForm]}
         onChange={(e) => setCredForm({ ...credForm, [name]: e.target.value })}
@@ -255,8 +261,8 @@ export function PublishSettingsView({ t }: { t: Theme }) {
                 <span className={`text-sm font-bold ${t.text}`}>Facebook / Instagram</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-11">
-                <TextField label="App ID" name="facebook_app_id" placeholder="e.g. 1234567890" />
-                <SecretField label="App Secret" name="facebook_app_secret" value={credForm.facebook_app_secret} />
+                {renderTextField({ label: 'App ID', name: 'facebook_app_id', placeholder: 'e.g. 1234567890' })}
+                {renderSecretField({ label: 'App Secret', name: 'facebook_app_secret', value: credForm.facebook_app_secret })}
               </div>
             </div>
 
@@ -269,10 +275,10 @@ export function PublishSettingsView({ t }: { t: Theme }) {
                 <span className={`text-sm font-bold ${t.text}`}>Google / YouTube</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-11">
-                <TextField label="Client ID" name="google_client_id" placeholder="e.g. 123456.apps.googleusercontent.com" />
-                <SecretField label="Client Secret" name="google_client_secret" value={credForm.google_client_secret} />
+                {renderTextField({ label: 'Client ID', name: 'google_client_id', placeholder: 'e.g. 123456.apps.googleusercontent.com' })}
+                {renderSecretField({ label: 'Client Secret', name: 'google_client_secret', value: credForm.google_client_secret })}
                 <div className="md:col-span-2">
-                  <TextField label="Redirect URI" name="google_redirect_uri" placeholder="https://your-app.repl.co/api/settings/oauth/callback" />
+                  {renderTextField({ label: 'Redirect URI', name: 'google_redirect_uri', placeholder: 'https://your-app.repl.co/api/settings/oauth/callback' })}
                 </div>
               </div>
             </div>
@@ -286,7 +292,7 @@ export function PublishSettingsView({ t }: { t: Theme }) {
                 <span className={`text-sm font-bold ${t.text}`}>Site Configuration</span>
               </div>
               <div className="pl-11">
-                <TextField label="Site URL" name="site_url" placeholder="https://your-app.repl.co" />
+                {renderTextField({ label: 'Site URL', name: 'site_url', placeholder: 'https://your-app.repl.co' })}
                 <p className={`text-[10px] ${t.muted} mt-2`}>Used for OAuth redirects. Must match the URL configured in Facebook/Google developer consoles.</p>
               </div>
             </div>
@@ -417,10 +423,10 @@ export function PublishSettingsView({ t }: { t: Theme }) {
 
             {settings && (
               <div className="divide-y divide-black/5">
-                <ToggleButton enabled={!!settings.require_review} onToggle={() => toggle('require_review')} label="Require parent review" />
-                <ToggleButton enabled={!!settings.facebook_enabled} onToggle={() => toggle('facebook_enabled')} label="Publish to Facebook" />
-                <ToggleButton enabled={!!settings.instagram_enabled} onToggle={() => toggle('instagram_enabled')} label="Publish to Instagram" />
-                <ToggleButton enabled={!!settings.youtube_enabled} onToggle={() => toggle('youtube_enabled')} label="Publish to YouTube" />
+                {renderToggleButton({ enabled: !!settings.require_review, onToggle: () => toggle('require_review'), label: 'Require parent review' })}
+                {renderToggleButton({ enabled: !!settings.facebook_enabled, onToggle: () => toggle('facebook_enabled'), label: 'Publish to Facebook' })}
+                {renderToggleButton({ enabled: !!settings.instagram_enabled, onToggle: () => toggle('instagram_enabled'), label: 'Publish to Instagram' })}
+                {renderToggleButton({ enabled: !!settings.youtube_enabled, onToggle: () => toggle('youtube_enabled'), label: 'Publish to YouTube' })}
               </div>
             )}
 

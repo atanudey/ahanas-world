@@ -60,18 +60,17 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
     historyRef.current = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
   }, []);
 
-  const getPos = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    if ('touches' in e) {
-      const touch = e.touches[0] || e.changedTouches[0];
-      return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
-    }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+  const getPos = useCallback((e: React.PointerEvent) => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }, []);
 
-  const startDraw = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    e.preventDefault();
+  // Pointer events cover mouse, touch and stylus in one stream. Separate touch +
+  // mouse handlers double-fired on a tap (React's touch listeners are passive, so
+  // preventDefault couldn't stop the emulated mouse events), adding 2 undo steps.
+  const startDraw = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!e.isPrimary) return; // ignore a second finger
+    e.currentTarget.setPointerCapture(e.pointerId);
     isDrawingRef.current = true;
     const pos = getPos(e);
     lastPosRef.current = pos;
@@ -82,9 +81,8 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
     ctx.moveTo(pos.x, pos.y);
   }, [getPos]);
 
-  const draw = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    e.preventDefault();
-    if (!isDrawingRef.current || !lastPosRef.current) return;
+  const draw = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!e.isPrimary || !isDrawingRef.current || !lastPosRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -163,6 +161,7 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
     <div className="bg-white rounded-[2.5rem] p-5 lg:p-7 shadow-2xl max-w-lg w-full mx-4 relative">
       <button
         onClick={onCancel}
+        aria-label="Close"
         className="absolute top-5 right-5 z-10 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition"
       >
         <X className="w-4 h-4 text-slate-500" />
@@ -184,13 +183,10 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
           ref={canvasRef}
           className="w-full aspect-[4/3] cursor-crosshair"
           style={{ touchAction: 'none' }}
-          onMouseDown={startDraw}
-          onMouseMove={draw}
-          onMouseUp={endDraw}
-          onMouseLeave={endDraw}
-          onTouchStart={startDraw}
-          onTouchMove={draw}
-          onTouchEnd={endDraw}
+          onPointerDown={startDraw}
+          onPointerMove={draw}
+          onPointerUp={endDraw}
+          onPointerCancel={endDraw}
         />
       </div>
 
@@ -202,6 +198,8 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
             <button
               key={c}
               onClick={() => { setColor(c); setIsEraser(false); }}
+              aria-label={`Color ${c}`}
+              aria-pressed={color === c && !isEraser}
               className={`w-8 h-8 sm:w-7 sm:h-7 rounded-full border-2 transition ${
                 color === c && !isEraser ? 'border-slate-800 scale-110' : 'border-transparent'
               }`}
@@ -227,6 +225,8 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
           <div className="w-px h-6 bg-slate-200 mx-1" />
           <button
             onClick={() => setIsEraser(!isEraser)}
+            aria-label="Eraser"
+            aria-pressed={isEraser}
             className={`w-8 h-8 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center transition ${
               isEraser ? 'bg-pink-100 text-pink-600' : 'bg-slate-100 text-slate-500'
             }`}
@@ -234,10 +234,10 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
           >
             <Eraser className="w-4 h-4" />
           </button>
-          <button onClick={undo} className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition" style={{ touchAction: 'manipulation' }}>
+          <button onClick={undo} aria-label="Undo" className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition" style={{ touchAction: 'manipulation' }}>
             <Undo2 className="w-4 h-4" />
           </button>
-          <button onClick={clearCanvas} className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition" style={{ touchAction: 'manipulation' }}>
+          <button onClick={clearCanvas} aria-label="Clear drawing" className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition" style={{ touchAction: 'manipulation' }}>
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -246,12 +246,14 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
       {/* Submit */}
       <input
         type="text"
+        aria-label="Title"
         placeholder="Name your masterpiece..."
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-fuchsia-300 focus:border-fuchsia-400 transition mb-3"
       />
       <textarea
+        aria-label="Story"
         placeholder="What inspired this drawing?"
         rows={2}
         value={notes}

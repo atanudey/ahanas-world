@@ -18,6 +18,7 @@ export function MinecraftDetail({ item }: MinecraftDetailProps) {
       <div className="mc-glass bg-black/80 w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col md:flex-row relative shadow-[8px_8px_0px_rgba(0,0,0,0.8)] z-10">
         <Link
           href="/"
+          aria-label="Close"
           className="absolute top-3 right-3 z-10 w-8 h-8 bg-black/50 border-2 border-white/50 flex items-center justify-center hover:bg-[#FF5555] hover:border-[#AA0000] transition-colors"
         >
           <X className="w-4 h-4 text-white drop-shadow-md" />

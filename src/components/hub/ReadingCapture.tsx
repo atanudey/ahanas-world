@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Book, Camera, X, Wand2, Image as ImageIcon } from 'lucide-react';
 import type { CaptureResult } from '@/lib/types/capture';
 
@@ -16,8 +16,17 @@ export function ReadingCapture({ onComplete, onCancel }: ReadingCaptureProps) {
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Revoke the previous preview URL when it changes and on unmount.
+  useEffect(() => {
+    return () => {
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
+    };
+  }, [photoUrl]);
+
   const handlePhotoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Reset so picking the same file again (after removing it) still fires onChange.
+    e.target.value = '';
     if (!file) return;
     setPhotoBlob(file);
     setPhotoUrl(URL.createObjectURL(file));
@@ -25,9 +34,8 @@ export function ReadingCapture({ onComplete, onCancel }: ReadingCaptureProps) {
 
   const removePhoto = useCallback(() => {
     setPhotoBlob(null);
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
     setPhotoUrl(null);
-  }, [photoUrl]);
+  }, []);
 
   const handleSubmit = useCallback(() => {
     if (!title.trim()) return;
@@ -47,6 +55,7 @@ export function ReadingCapture({ onComplete, onCancel }: ReadingCaptureProps) {
     <div className="bg-white rounded-[2.5rem] p-6 lg:p-8 shadow-2xl max-w-md w-full mx-4 relative">
       <button
         onClick={onCancel}
+        aria-label="Close"
         className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition"
       >
         <X className="w-4 h-4 text-slate-500" />
@@ -63,6 +72,7 @@ export function ReadingCapture({ onComplete, onCancel }: ReadingCaptureProps) {
 
       <input
         type="text"
+        aria-label="Book title"
         placeholder="Book title..."
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -70,6 +80,7 @@ export function ReadingCapture({ onComplete, onCancel }: ReadingCaptureProps) {
       />
 
       <textarea
+        aria-label="Reflection"
         placeholder="What did you love about it? What surprised you? How did it make you feel?"
         rows={4}
         value={notes}
@@ -91,6 +102,7 @@ export function ReadingCapture({ onComplete, onCancel }: ReadingCaptureProps) {
           <img src={photoUrl} alt="Book cover" className="w-full h-40 object-cover" />
           <button
             onClick={removePhoto}
+            aria-label="Remove photo"
             className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition"
           >
             <X className="w-3 h-3" />

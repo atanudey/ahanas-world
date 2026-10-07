@@ -112,6 +112,7 @@ export default function ParentLoginPage() {
               <input
                 ref={inputRef}
                 type={showPin ? 'text' : 'password'}
+                aria-label="PIN"
                 inputMode="numeric"
                 pattern="[0-9]*"
                 value={pin}
@@ -128,6 +129,7 @@ export default function ParentLoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPin(!showPin)}
+                aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
                 className={`absolute right-4 top-1/2 -translate-y-1/2 ${t.muted} hover:${t.text} transition`}
               >
                 {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

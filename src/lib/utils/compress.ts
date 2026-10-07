@@ -14,7 +14,9 @@ export async function compressImage(
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    const src = URL.createObjectURL(blob);
     img.onload = () => {
+      URL.revokeObjectURL(src);
       const canvas = document.createElement('canvas');
       let { width, height } = img;
 
@@ -36,8 +38,11 @@ export async function compressImage(
         quality,
       );
     };
-    img.onerror = reject;
-    img.src = URL.createObjectURL(blob);
+    img.onerror = (err) => {
+      URL.revokeObjectURL(src);
+      reject(err);
+    };
+    img.src = src;
   });
 }
 

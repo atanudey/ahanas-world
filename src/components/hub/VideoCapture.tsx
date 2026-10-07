@@ -55,90 +55,83 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
     };
   }, [previewUrl]);
 
+  // The live camera stream. Kept in state so the effect below can attach it to
+  // whichever <video> element is currently mounted (it is unmounted while a
+  // capture is shown, so attaching only at getUserMedia time left Retake black).
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  // Each camera request gets an id; a result that arrives after a newer request,
+  // a cancel, or unmount is stopped instead of leaving the camera light on.
+  const requestIdRef = useRef(0);
+
+  // Only releases the hardware. `stream` state is left as is: every path that
+  // shows a live preview again goes through openCamera, which replaces it.
   const stopStream = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
   }, []);
 
-  const startCamera = useCallback(async () => {
+  // Mode and facing are passed in (not read from state) so switching to Video
+  // requests a microphone straight away instead of using the previous mode.
+  const openCamera = useCallback(async (nextFacing: 'user' | 'environment', nextMode: Mode) => {
+    const requestId = ++requestIdRef.current;
+    stopStream();
     try {
-      setError(null);
-      stopStream();
-      const constraints: MediaStreamConstraints = {
-        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: mode === 'video',
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
+      const next = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: nextFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: nextMode === 'video',
+      });
+      if (requestId !== requestIdRef.current) {
+        next.getTracks().forEach((t) => t.stop());
+        return;
       }
+      streamRef.current = next;
+      setStream(next);
+      setError(null);
       setCaptureState('previewing');
     } catch {
-      setError('Could not access camera. Please allow camera access and try again.');
-    }
-  }, [facing, mode, stopStream]);
-
-  // Mount: start camera with isMounted guard for Strict Mode
-  useEffect(() => {
-    let isMounted = true;
-
-    const initCamera = async () => {
-      try {
-        const constraints: MediaStreamConstraints = {
-          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-        // Component unmounted while awaiting — kill the orphaned stream
-        if (!isMounted) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
-        }
-        setCaptureState('previewing');
-      } catch {
-        if (isMounted) {
-          setError('Could not access camera. Please allow camera access and try again.');
-        }
+      if (requestId === requestIdRef.current) {
+        setError('Could not access camera. Please allow camera access and try again.');
       }
-    };
+    }
+  }, [stopStream]);
 
-    initCamera();
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !stream || video.srcObject === stream) return;
+    video.srcObject = stream;
+    video.play().catch(() => {});
+  }, [stream, captureState]);
+
+  // Mount: start the camera. Cleanup invalidates any in-flight request (Strict
+  // Mode runs this twice) and releases the camera, mic and recorder.
+  useEffect(() => {
+    openCamera('environment', 'photo');
     return () => {
-      isMounted = false;
+      // A counter, not a DOM ref — bumping it is exactly what cleanup should do.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      requestIdRef.current++;
       if (timerRef.current) clearInterval(timerRef.current);
+      if (recorderRef.current) {
+        recorderRef.current.onstop = null;
+        if (recorderRef.current.state !== 'inactive') recorderRef.current.stop();
+      }
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, []);
+  }, [openCamera]);
 
-  const flipCamera = useCallback(async () => {
+  const flipCamera = useCallback(() => {
     const next = facing === 'user' ? 'environment' : 'user';
     setFacing(next);
-    stopStream();
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: next, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: mode === 'video',
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
-      }
-    } catch {
-      setError('Could not switch camera.');
-    }
-  }, [facing, mode, stopStream]);
+    openCamera(next, mode);
+  }, [facing, mode, openCamera]);
+
+  const switchMode = useCallback((next: Mode) => {
+    if (next === mode) return;
+    setMode(next);
+    openCamera(facing, next);
+  }, [facing, mode, openCamera]);
 
   const capturePhoto = useCallback(() => {
     const video = videoRef.current;
@@ -222,8 +215,8 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
     // The cleanup effect on previewUrl revokes the old object URL.
     setPreviewUrl(null);
     setElapsed(0);
-    startCamera();
-  }, [startCamera]);
+    openCamera(facing, mode);
+  }, [facing, mode, openCamera]);
 
   const handleSubmit = useCallback(() => {
     if (!blobRef.current || !title.trim()) return;
@@ -249,6 +242,7 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
     <div className="bg-white rounded-[2.5rem] p-6 lg:p-8 shadow-2xl max-w-md w-full mx-4 relative">
       <button
         onClick={onCancel}
+        aria-label="Close"
         className="absolute top-5 right-5 z-10 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition"
       >
         <X className="w-4 h-4 text-slate-500" />
@@ -269,13 +263,15 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
       {captureState !== 'recorded' && captureState !== 'recording' && (
         <div className="flex bg-slate-100 rounded-xl p-1 mb-4">
           <button
-            onClick={() => { setMode('photo'); if (captureState === 'previewing') startCamera(); }}
+            onClick={() => switchMode('photo')}
+            aria-pressed={mode === 'photo'}
             className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${mode === 'photo' ? 'bg-white shadow text-violet-600' : 'text-slate-500'}`}
           >
             Photo
           </button>
           <button
-            onClick={() => { setMode('video'); if (captureState === 'previewing') startCamera(); }}
+            onClick={() => switchMode('video')}
+            aria-pressed={mode === 'video'}
             className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${mode === 'video' ? 'bg-white shadow text-violet-600' : 'text-slate-500'}`}
           >
             Video
@@ -284,7 +280,14 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
       )}
 
       {error && (
-        <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl mb-4 font-medium">{error}</div>
+        <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl mb-4 font-medium flex items-center justify-between gap-3">
+          {error}
+          {(captureState === 'idle' || captureState === 'recorded') && (
+            <button onClick={() => openCamera(facing, mode)} className="shrink-0 font-bold underline">
+              Try again
+            </button>
+          )}
+        </div>
       )}
 
       {/* Camera Preview / Captured Preview */}
@@ -307,9 +310,11 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
         )}
 
         {/* Camera flip */}
-        {(captureState === 'previewing' || captureState === 'recording') && (
+        {/* Not while recording: replacing the stream would end the take. */}
+        {captureState === 'previewing' && (
           <button
             onClick={flipCamera}
+            aria-label="Switch camera"
             className="absolute top-3 left-3 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition"
           >
             <SwitchCamera className="w-4 h-4" />
@@ -368,12 +373,14 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
 
           <input
             type="text"
+            aria-label="Title"
             placeholder="Give it a name..."
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 transition"
           />
           <textarea
+            aria-label="Story"
             placeholder="What's the story behind this?"
             rows={2}
             value={notes}

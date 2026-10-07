@@ -63,6 +63,23 @@ export default function ParentPage() {
 
   useEffect(() => { fetchContent(); }, [fetchContent]);
 
+  // The OAuth callback redirects here with ?oauth_success= / ?oauth_error=.
+  const [oauthNotice, setOauthNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('oauth_success');
+    const error = params.get('oauth_error');
+    if (!success && !error) return;
+    const name = success === 'google' ? 'YouTube' : 'Facebook';
+    setOauthNotice(
+      success
+        ? { ok: true, text: `${name} connected.` }
+        : { ok: false, text: `Couldn't connect the account (${error}). Please try again.` },
+    );
+    setActiveSection('Publish Settings');
+    window.history.replaceState(null, '', window.location.pathname);
+  }, []);
+
   const openContentDetail = useCallback(async (id: string) => {
     try {
       const res = await fetch(`/api/content/${id}`);
@@ -117,7 +134,39 @@ export default function ParentPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 lg:p-12 overflow-y-auto relative">
+      <main className="flex-1 p-4 sm:p-8 lg:p-12 overflow-y-auto relative min-w-0">
+        {/* Section nav for small screens — the sidebar is desktop-only. */}
+        <nav className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-6 -mx-1 px-1" aria-label="Sections">
+          {SIDEBAR_LINKS.map(({ label, icon: Icon }) => (
+            <button
+              key={label}
+              onClick={() => setActiveSection(label)}
+              aria-current={label === activeSection ? 'page' : undefined}
+              className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition ${
+                label === activeSection ? `${t.accentBg} ${t.accent}` : `${t.muted} ${t.glass}`
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+          <Link href="/" className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${t.muted} ${t.glass}`}>
+            <LogOut className="w-4 h-4" /> Exit
+          </Link>
+        </nav>
+
+        {oauthNotice && (
+          <div
+            role="status"
+            className={`mb-6 rounded-2xl px-5 py-3 text-sm font-bold flex items-center justify-between gap-4 ${
+              oauthNotice.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+            }`}
+          >
+            {oauthNotice.text}
+            <button onClick={() => setOauthNotice(null)} aria-label="Dismiss" className="opacity-60 hover:opacity-100">✕</button>
+          </div>
+        )}
+
         {activeSection === 'Creative Pulse' && (
           <CreativePulseView t={t} allContent={allContent} loading={loadingContent} onOpenDetail={openContentDetail} onRefresh={fetchContent} />
         )}

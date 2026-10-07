@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { THEMES } from '@/lib/theme';
@@ -95,5 +95,22 @@ describe('ThemeProvider', () => {
       return null;
     }
     expect(() => render(<Orphan />)).toThrow(/useTheme must be used within ThemeProvider/);
+  });
+
+  it('still renders and switches theme when storage is blocked', () => {
+    const blocked = () => { throw new DOMException('denied', 'SecurityError'); };
+    const getSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(blocked);
+    const setSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(blocked);
+    try {
+      renderProbe();
+      expect(screen.getByTestId('mode').textContent).toBe('moonlit');
+      act(() => screen.getByText('set-minecraft').click());
+      expect(screen.getByTestId('mode').textContent).toBe('minecraft');
+    } finally {
+      getSpy.mockRestore();
+      setSpy.mockRestore();
+      // A successful write clears the in-memory fallback for later tests.
+      act(() => screen.getByText('set-minecraft').click());
+    }
   });
 });

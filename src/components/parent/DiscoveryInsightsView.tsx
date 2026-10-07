@@ -111,7 +111,7 @@ export function DiscoveryInsightsView({ t }: { t: Theme }) {
           <div className={`${t.card} border ${t.border} p-8 rounded-[2.5rem] shadow-sm`}>
             <h4 className={`font-bold mb-6 ${t.text}`}>Top Performers</h4>
             <div className="space-y-4">
-              {MOCK_CONTENT.sort((a, b) => b.views - a.views).slice(0, 3).map((item) => (
+              {[...MOCK_CONTENT].sort((a, b) => b.views - a.views).slice(0, 3).map((item) => (
                 <div key={item.id} className="flex items-center justify-between">
                   <span className={`text-sm font-medium ${t.text} truncate mr-3`}>{item.title}</span>
                   <span className="text-xs font-bold text-teal-600 whitespace-nowrap">{item.views.toLocaleString()}</span>

@@ -26,12 +26,17 @@ export function useUploadContent() {
     try {
       let mediaBlob = params.mediaBlob;
       let thumbnailBlob = params.thumbnailBlob;
-      const mimeType = params.mimeType ?? 'application/octet-stream';
+      let mimeType = params.mimeType ?? 'application/octet-stream';
 
-      // Compress images before upload
+      // Compress images before upload. This re-encodes to JPEG, so report the
+      // compressed blob's type — not the original (e.g. a PNG drawing or HEIC photo).
       if (mediaBlob && mimeType.startsWith('image/')) {
         setUploadState({ status: 'uploading', progress: 10 });
         mediaBlob = await compressImage(mediaBlob, 1920, 0.85);
+        mimeType = mediaBlob.type || mimeType;
+        // Captures pass the original (uncompressed, possibly multi-MB) image as
+        // the thumbnail; the server derives one from the compressed upload instead.
+        thumbnailBlob = undefined;
       }
 
       // Auto-generate thumbnail for video if not provided

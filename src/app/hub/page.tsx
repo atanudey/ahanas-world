@@ -134,27 +134,9 @@ export default function HubPage() {
     }
   }, [upload, resetUpload]);
 
-  if (mode === 'minecraft') {
-    return <MinecraftHub />;
-  }
-
-  return (
-    <div
-      className={`min-h-screen ${t.bg} ${t.text} transition-colors duration-700 relative flex flex-col`}
-    >
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <GradientBlobs />
-      </div>
-      {/* Texture */}
-      <div
-        className={`fixed inset-0 z-0 pointer-events-none ${t.texture}`}
-        style={{
-          backgroundImage:
-            "url('https://www.transparenttextures.com/patterns/handmade-paper.png')",
-          opacity: 0.2,
-        }}
-      />
-
+  // Toasts + capture modals, shared by the default and Minecraft layouts.
+  const captureOverlays = (
+    <>
       {/* Success Toast */}
       {captureSuccess && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-bounce">
@@ -177,9 +159,12 @@ export default function HubPage() {
 
       {uploadState.status === 'error' && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
-          <div className="bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-2">
+          <div role="alert" className="bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
             {uploadState.error || 'Upload failed'}
+            <button onClick={resetUpload} aria-label="Dismiss" className="ml-2 opacity-80 hover:opacity-100">
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
@@ -216,6 +201,36 @@ export default function HubPage() {
           )}
         </div>
       )}
+    </>
+  );
+
+  if (mode === 'minecraft') {
+    return (
+      <>
+        {captureOverlays}
+        <MinecraftHub onCapture={handleCapture} />
+      </>
+    );
+  }
+
+  return (
+    <div
+      className={`min-h-screen ${t.bg} ${t.text} transition-colors duration-700 relative flex flex-col`}
+    >
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <GradientBlobs />
+      </div>
+      {/* Texture */}
+      <div
+        className={`fixed inset-0 z-0 pointer-events-none ${t.texture}`}
+        style={{
+          backgroundImage:
+            "url('https://www.transparenttextures.com/patterns/handmade-paper.png')",
+          opacity: 0.2,
+        }}
+      />
+
+      {captureOverlays}
 
       {/* Badge Detail Modal */}
       {selectedBadge && (
@@ -226,6 +241,7 @@ export default function HubPage() {
           >
             <button
               onClick={() => setSelectedBadge(null)}
+              aria-label="Close"
               className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition"
             >
               <X className="w-4 h-4 text-slate-500" />
@@ -296,6 +312,7 @@ export default function HubPage() {
             </div>
             <Link
               href="/"
+              aria-label="Exit studio"
               className={`bg-white/80 border ${t.border} p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl hover:bg-white transition backdrop-blur-xl shadow-sm flex items-center`}
             >
               <LogOut className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${t.muted}`} />
@@ -344,10 +361,12 @@ export default function HubPage() {
             </h3>
             <div className="space-y-4 flex-1">
               {missions.map((m) => (
-                <div
+                <button
+                  type="button"
                   key={m.id}
                   onClick={() => toggleMission(m.id)}
-                  className={`p-3 sm:p-5 rounded-xl sm:rounded-2xl border ${
+                  aria-pressed={m.done}
+                  className={`w-full text-left p-3 sm:p-5 rounded-xl sm:rounded-2xl border ${
                     m.done
                       ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
                       : 'bg-slate-50 border-transparent text-slate-800'
@@ -379,7 +398,7 @@ export default function HubPage() {
                       +{xpPopup.xp} XP!
                     </span>
                   )}
-                </div>
+                </button>
               ))}
             </div>
 
@@ -411,9 +430,11 @@ export default function HubPage() {
             </h3>
             <div className="grid grid-cols-2 gap-4">
               {badges.map((badge, i) => (
-                <div
+                <button
+                  type="button"
                   key={i}
                   onClick={() => setSelectedBadge(badge)}
+                  aria-label={badge.unlocked ? badge.name : `${badge.name} (locked)`}
                   className={`aspect-square rounded-[1.5rem] flex items-center justify-center group cursor-pointer hover:scale-110 transition border relative ${
                     badge.unlocked
                       ? 'bg-teal-50 border-teal-100'
@@ -433,7 +454,7 @@ export default function HubPage() {
                       </div>
                     </div>
                   )}
-                </div>
+                </button>
               ))}
             </div>
 
