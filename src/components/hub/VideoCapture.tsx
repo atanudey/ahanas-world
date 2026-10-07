@@ -91,6 +91,9 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
       setCaptureState('previewing');
     } catch {
       if (requestId === requestIdRef.current) {
+        // The old stream is already stopped, so drop back to idle: the preview
+        // would be a dead frame, and idle is where "Try again" is offered.
+        setCaptureState('idle');
         setError('Could not access camera. Please allow camera access and try again.');
       }
     }

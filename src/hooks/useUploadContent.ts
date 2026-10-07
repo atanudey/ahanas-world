@@ -27,6 +27,9 @@ export function useUploadContent() {
       let mediaBlob = params.mediaBlob;
       let thumbnailBlob = params.thumbnailBlob;
       let mimeType = params.mimeType ?? 'application/octet-stream';
+      // What the capture produced, before compression — a PNG means a drawing
+      // rather than a photo, which the server uses for the category.
+      const sourceMimeType = mimeType;
 
       // Compress images before upload. This re-encodes to JPEG, so report the
       // compressed blob's type — not the original (e.g. a PNG drawing or HEIC photo).
@@ -57,6 +60,7 @@ export function useUploadContent() {
         const ext = mimeType.split('/')[1]?.split(';')[0] ?? 'bin';
         formData.append('media', mediaBlob, `capture.${ext}`);
         formData.append('mimeType', mimeType);
+        formData.append('sourceMimeType', sourceMimeType);
       }
 
       if (thumbnailBlob) {

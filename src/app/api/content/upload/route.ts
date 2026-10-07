@@ -19,21 +19,22 @@ function contentTypeFromCapture(captureType: string): string {
   }
 }
 
-function categoryFromType(type: string, mimeType: string): string {
+/** `sourceMime` is the type the capture produced (a PNG is a drawing), not the stored type. */
+function categoryFromType(type: string, sourceMime: string): string {
   switch (type) {
     case 'song': return 'Audio Recording';
     case 'video': return 'Video Recording';
-    case 'art': return mimeType === 'image/png' ? 'Digital Drawing' : 'Photography';
+    case 'art': return sourceMime === 'image/png' ? 'Digital Drawing' : sourceMime ? 'Photography' : 'Artwork';
     case 'reading': return 'Book Reflection';
     default: return 'Creative Work';
   }
 }
 
-function mediumFromType(type: string, mimeType: string): string {
+function mediumFromType(type: string, sourceMime: string): string {
   switch (type) {
     case 'song': return 'Voice & Melody';
     case 'video': return 'Video Performance';
-    case 'art': return mimeType === 'image/png' ? 'Digital Art' : 'Photography';
+    case 'art': return sourceMime === 'image/png' ? 'Digital Art' : sourceMime ? 'Photography' : 'Mixed Media';
     case 'reading': return 'Literary Reflection';
     default: return 'Mixed Media';
   }
@@ -79,8 +80,13 @@ function baseMimeType(mimeType: string): string {
 
 export async function POST(request: Request) {
   try {
-    const contentLength = Number(request.headers.get('content-length') || 0);
-    if (contentLength > MAX_REQUEST_BYTES) {
+    // Browsers always send Content-Length for a FormData body; without it the
+    // size can't be checked before the whole request is read into memory.
+    const contentLength = request.headers.get('content-length');
+    if (contentLength === null) {
+      return NextResponse.json({ error: 'Content-Length is required' }, { status: 411 });
+    }
+    if (Number(contentLength) > MAX_REQUEST_BYTES) {
       return NextResponse.json({ error: 'Upload is too large' }, { status: 413 });
     }
 
@@ -105,6 +111,11 @@ export async function POST(request: Request) {
       ? baseMimeType((formData.get('mimeType') as string) || mediaFile.type || '')
       : '';
     const mediaExt = ALLOWED_MEDIA_TYPES[mimeType];
+    // Images are compressed to JPEG in the browser; the original type says
+    // whether this was a drawing or a photo.
+    const sourceMime = hasMedia
+      ? baseMimeType((formData.get('sourceMimeType') as string) || mimeType)
+      : '';
 
     if (hasMedia) {
       if (!mediaExt) {
@@ -189,8 +200,8 @@ export async function POST(request: Request) {
         description: notes,
         story: '',
         notes,
-        category: categoryFromType(type, mimeType),
-        medium: mediumFromType(type, mimeType),
+        category: categoryFromType(type, sourceMime),
+        medium: mediumFromType(type, sourceMime),
         status: 'review_needed',
         visibility: 'private',
         sections: sectionsFromType(type),
