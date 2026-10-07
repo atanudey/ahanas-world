@@ -1,9 +1,9 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronRight, Play } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
+import { Thumbnail } from '@/components/shared/MediaPlaceholder';
 import type { ContentItem } from '@/lib/constants';
 
 interface ContentCardProps {
@@ -20,15 +20,13 @@ export function ContentCard({ item }: ContentCardProps) {
       className={`group liquid-glass ${t.card} rounded-[2.5rem] overflow-hidden transition-all cursor-pointer flex flex-col relative`}
     >
       <div className="aspect-[4/3] relative overflow-hidden">
-        <Image
-          src={item.thumbnail}
-          alt={item.title}
-          fill
-          className="object-cover group-hover:scale-110 transition-transform duration-1000"
+        <Thumbnail
+          item={item}
+          className="group-hover:scale-110 transition-transform duration-1000"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         />
         <div className="absolute top-4 left-4">
-          <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-white border border-white/30">
+          <span className="px-3 py-1 bg-black/45 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-white border border-white/20">
             {item.category}
           </span>
         </div>

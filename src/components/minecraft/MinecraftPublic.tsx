@@ -1,11 +1,11 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
 import { ViewSwitcher } from '@/components/shared/ViewSwitcher';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
-import { MOCK_CONTENT, type ContentItem } from '@/lib/constants';
+import { Thumbnail } from '@/components/shared/MediaPlaceholder';
+import type { ContentItem } from '@/lib/constants';
 
 const TABS = [
   { id: 'home', label: 'Home', href: '/' },
@@ -22,30 +22,28 @@ function McCard({ item }: { item: ContentItem }) {
       href={`/content/${item.slug}`}
       className="mc-glass relative cursor-pointer hover:border-white transition-all flex flex-col group"
     >
-      <div className="absolute top-[-12px] left-[-12px] mc-grass-block px-2 py-0.5 text-[10px] mc-text-shadow-sm font-bold z-20 shadow-[2px_2px_0_rgba(0,0,0,0.5)]">
+      <div className="absolute top-[-12px] left-[-12px] max-w-[90%] truncate mc-grass-block px-2 py-0.5 text-[10px] mc-text-shadow-sm font-bold z-20 shadow-[2px_2px_0_rgba(0,0,0,0.5)]">
         {item.category}
       </div>
       <div className="p-2 pb-0">
         <div className="aspect-[4/3] overflow-hidden relative border-2 border-black/50">
-          <Image
-            src={item.thumbnail}
-            alt={item.title}
-            fill
-            className="object-cover group-hover:scale-110 transition-transform duration-500"
+          <Thumbnail
+            item={item}
+            className="group-hover:scale-110 transition-transform duration-500"
             sizes="(max-width: 768px) 100vw, 33vw"
           />
         </div>
       </div>
       <div className="p-3 flex-1 flex flex-col">
-        <h3 className="text-sm font-mc text-[#55FFFF] mc-text-shadow mb-1 leading-tight">
+        <h3 className="text-xs md:text-sm font-mc text-[#55FFFF] mc-text-shadow mb-1 leading-tight break-words">
           {item.title}
         </h3>
         <p className="text-gray-300 text-xs mb-3 line-clamp-2 mc-text-shadow-sm">
           {item.description}
         </p>
-        <button className="mc-wood-block px-4 py-1.5 text-xs mt-auto tracking-wide w-full mc-text-shadow-sm">
+        <span className="mc-wood-block block text-center px-4 py-1.5 text-xs mt-auto tracking-wide w-full mc-text-shadow-sm">
           Read Story
-        </button>
+        </span>
       </div>
     </Link>
   );
@@ -55,15 +53,11 @@ interface MinecraftPublicProps {
   section?: string;
   sectionTitle?: string;
   showHero?: boolean;
+  /** Already filtered to published, public items for this section. */
+  items: ContentItem[];
 }
 
-export function MinecraftPublic({ section, sectionTitle, showHero = false }: MinecraftPublicProps) {
-  const items = MOCK_CONTENT.filter((item) => {
-    if (item.visibility !== 'public' || item.status !== 'published') return false;
-    if (!section || section === 'home') return true;
-    return item.sections.includes(section as never);
-  });
-
+export function MinecraftPublic({ section, sectionTitle, showHero = false, items }: MinecraftPublicProps) {
   return (
     <div className="mc-bg mc-font min-h-screen text-white relative overflow-hidden">
       <div className="mc-overlay" />
@@ -97,11 +91,22 @@ export function MinecraftPublic({ section, sectionTitle, showHero = false }: Min
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="mc-grass-block px-4 py-1 text-xs mc-text-shadow-sm hidden md:block hover:brightness-110 active:translate-y-0.5">
-              Say Hello!
-            </button>
             <ThemeToggle />
           </div>
+        </div>
+        {/* Section links for small screens */}
+        <div className="lg:hidden max-w-6xl mx-auto mt-2 flex gap-1 overflow-x-auto pb-1" aria-label="Sections">
+          {TABS.map((tab) => (
+            <Link
+              key={tab.id}
+              href={tab.href}
+              className={`shrink-0 px-3 py-2 text-xs font-mc mc-text-shadow-sm ${
+                (section || 'home') === tab.id ? 'mc-wood-block text-white' : 'text-gray-300 border-2 border-white/10'
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
         </div>
       </nav>
 
@@ -121,9 +126,9 @@ export function MinecraftPublic({ section, sectionTitle, showHero = false }: Min
               explore the universe.
             </p>
             <div className="mt-4 relative z-10">
-              <button className="mc-wood-block px-6 py-2 text-sm mc-text-shadow-sm tracking-wide">
+              <a href="#inventory" className="mc-wood-block inline-block px-6 py-2 text-sm mc-text-shadow-sm tracking-wide">
                 Explore Inventory
-              </button>
+              </a>
             </div>
           </header>
         )}
@@ -136,7 +141,7 @@ export function MinecraftPublic({ section, sectionTitle, showHero = false }: Min
         )}
 
         {/* Content grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6 mt-4">
+        <div id="inventory" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6 mt-4">
           {items.map((item) => (
             <McCard key={item.id} item={item} />
           ))}

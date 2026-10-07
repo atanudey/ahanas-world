@@ -1,8 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useTheme } from '@/context/ThemeContext';
 
-export function HeroSection() {
+/** `latestSlug` is the newest published item; without one the button scrolls to the grid. */
+export function HeroSection({ latestSlug }: { latestSlug?: string }) {
   const { theme: t } = useTheme();
 
   return (
@@ -21,11 +23,12 @@ export function HeroSection() {
         parent-managed, and fueled by imagination.
       </p>
       <div className="flex flex-wrap justify-center gap-6">
-        <button
+        <Link
+          href={latestSlug ? `/content/${latestSlug}` : '#latest'}
           className={`px-10 py-4 bg-gradient-to-r ${t.gradient} text-white rounded-2xl font-bold text-lg shadow-xl hover:scale-[1.02] transition active:scale-95`}
         >
           Watch Latest Piece
-        </button>
+        </Link>
       </div>
     </header>
   );

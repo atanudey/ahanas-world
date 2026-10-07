@@ -40,6 +40,10 @@ export interface ContentItem {
   story: string;
   platforms: string[];
   medium: string;
+  /** Set for content from the database; sample items have no media file. */
+  mediaUrl?: string;
+  mediaType?: string;
+  durationMs?: number;
 }
 
 export const MOCK_CONTENT: ContentItem[] = [

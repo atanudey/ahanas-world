@@ -3,26 +3,20 @@
 import { useTheme } from '@/context/ThemeContext';
 import { ContentGrid } from '@/components/public/ContentGrid';
 import { MinecraftPublic } from '@/components/minecraft/MinecraftPublic';
-import { MOCK_CONTENT, type SectionId } from '@/lib/constants';
+import type { ContentItem, SectionId } from '@/lib/constants';
 
 interface SectionPageProps {
   section: SectionId;
   title: string;
+  items: ContentItem[];
 }
 
-export function SectionPage({ section, title }: SectionPageProps) {
+export function SectionPage({ section, title, items }: SectionPageProps) {
   const { mode } = useTheme();
 
   if (mode === 'minecraft') {
-    return <MinecraftPublic section={section} sectionTitle={title} />;
+    return <MinecraftPublic section={section} sectionTitle={title} items={items} />;
   }
-
-  const items = MOCK_CONTENT.filter(
-    (item) =>
-      item.visibility === 'public' &&
-      item.status === 'published' &&
-      item.sections.includes(section)
-  );
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">

@@ -34,7 +34,17 @@ export const viewport: Viewport = {
   ],
 };
 
+/** Base for relative URLs in metadata (Open Graph images and the like). */
+function siteUrl(): URL {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3030');
+  } catch {
+    return new URL('http://localhost:3030');
+  }
+}
+
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: {
     default: "Ahana's World — Songs, Sketches, Stories & Stars",
     template: "%s | Ahana's World",

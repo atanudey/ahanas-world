@@ -1,6 +1,6 @@
 import { SkeletonCard, SkeletonBox } from '@/components/shared/Skeleton';
 
-export default function PublicLoading() {
+export function PublicLoading() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f0326] via-[#1a0940] to-[#0d1b3e]">
       {/* Nav skeleton */}

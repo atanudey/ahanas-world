@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { connection } from 'next/server';
+import { getPublishedContent } from '@/lib/content/public';
 import { SectionPage } from '@/components/public/SectionPage';
 
 export const metadata: Metadata = {
@@ -10,6 +12,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function MusicPage() {
-  return <SectionPage section="music" title="Songs from the Stars" />;
+export default async function MusicPage() {
+  // Render per request so newly published work appears straight away.
+  await connection();
+  const items = await getPublishedContent('music');
+  return <SectionPage section="music" title="Songs from the Stars" items={items} />;
 }

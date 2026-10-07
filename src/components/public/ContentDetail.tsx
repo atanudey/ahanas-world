@@ -1,9 +1,10 @@
 'use client';
 
-import Image from 'next/image';
+import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Check, Share2, Sparkles } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
+import { Thumbnail } from '@/components/shared/MediaPlaceholder';
 import type { ContentItem } from '@/lib/constants';
 
 interface ContentDetailProps {
@@ -12,13 +13,52 @@ interface ContentDetailProps {
 
 export function ContentDetail({ item }: ContentDetailProps) {
   const { theme: t } = useTheme();
+  const [copied, setCopied] = useState(false);
+
+  const isVideo = !!item.mediaUrl && !!item.mediaType?.startsWith('video/');
+  const isAudio = !!item.mediaUrl && !!item.mediaType?.startsWith('audio/');
+
+  const share = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: item.title, text: item.description, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // The share sheet was dismissed, or the clipboard is unavailable.
+    }
+  };
+
+  const titleBlock = (
+    <>
+      <h1 className="text-4xl md:text-5xl font-black text-white italic tracking-tighter mb-4">
+        {item.title}
+      </h1>
+      {item.platforms.length > 0 && (
+        <div className="flex gap-3 flex-wrap">
+          {item.platforms.map((p) => (
+            <span
+              key={p}
+              className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold text-white border border-white/30 uppercase tracking-widest"
+            >
+              {p}
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-6 py-8">
         <Link
           href="/"
-          className={`inline-flex items-center gap-2 ${t.muted} hover:${t.text} font-bold text-sm mb-8 transition`}
+          className={`inline-flex items-center gap-2 ${t.muted} hover:opacity-80 font-bold text-sm py-2 mb-6 transition`}
         >
           <ArrowLeft className="w-4 h-4" />
           Back to World
@@ -30,73 +70,95 @@ export function ContentDetail({ item }: ContentDetailProps) {
           <div className="flex flex-col md:flex-row">
             {/* Media side */}
             <div className="md:w-3/5 relative aspect-[4/3] md:aspect-auto md:min-h-[600px] bg-slate-900">
-              <Image
-                src={item.thumbnail}
-                alt={item.title}
-                fill
-                className="object-cover opacity-80"
-                sizes="(max-width: 768px) 100vw, 60vw"
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-teal-950/80 via-transparent to-transparent" />
-              <div className="absolute bottom-12 left-12 right-12">
-                <h1 className="text-4xl md:text-5xl font-black text-white italic tracking-tighter mb-4">
-                  {item.title}
-                </h1>
-                <div className="flex gap-3 flex-wrap">
-                  {item.platforms.map((p) => (
-                    <span
-                      key={p}
-                      className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold text-white border border-white/30 uppercase tracking-widest"
-                    >
-                      {p}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              {isVideo ? (
+                <video
+                  src={item.mediaUrl}
+                  poster={item.thumbnail || undefined}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="absolute inset-0 w-full h-full object-contain bg-black"
+                />
+              ) : (
+                <>
+                  <Thumbnail
+                    item={item}
+                    sizes="(max-width: 768px) 100vw, 60vw"
+                    priority
+                    className="opacity-80"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-teal-950/80 via-transparent to-transparent" />
+                  <div className="absolute bottom-8 left-8 right-8 md:bottom-12 md:left-12 md:right-12">
+                    {titleBlock}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Story side */}
             <div className="md:w-2/5 p-8 md:p-12 overflow-y-auto">
               <div className="space-y-12">
-                <section>
-                  <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-4">
-                    The Story Behind
-                  </h4>
-                  <p className={`text-xl font-medium leading-relaxed italic ${t.text}`}>
-                    &ldquo;{item.story}&rdquo;
-                  </p>
-                </section>
+                {isVideo && (
+                  <div className={`${t.text} [&_h1]:text-current`}>{titleBlock}</div>
+                )}
 
-                <section className="p-8 rounded-[2rem] bg-teal-50 border border-teal-100">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Sparkles className="w-5 h-5 text-teal-600" />
-                    <h4 className="font-black uppercase text-[10px] tracking-widest text-teal-800">
-                      Inspiration Detail
+                {isAudio && (
+                  <section>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-4">
+                      Listen
                     </h4>
-                  </div>
-                  <p className="text-sm font-medium leading-relaxed text-teal-900">
-                    {item.description}
-                  </p>
-                </section>
+                    <audio src={item.mediaUrl} controls preload="metadata" className="w-full" />
+                  </section>
+                )}
+
+                {item.story && (
+                  <section>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-4">
+                      The Story Behind
+                    </h4>
+                    <p className={`text-xl font-medium leading-relaxed italic ${t.text}`}>
+                      &ldquo;{item.story}&rdquo;
+                    </p>
+                  </section>
+                )}
+
+                {item.description && (
+                  <section className={`p-8 rounded-[2rem] ${t.paper}`}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <Sparkles className={`w-5 h-5 ${t.accent}`} />
+                      <h4 className={`font-black uppercase text-[10px] tracking-widest ${t.muted}`}>
+                        Inspiration Detail
+                      </h4>
+                    </div>
+                    <p className={`text-sm font-medium leading-relaxed ${t.text}`}>
+                      {item.description}
+                    </p>
+                  </section>
+                )}
 
                 <div className={`pt-8 border-t ${t.border} grid grid-cols-2 gap-8`}>
-                  <div>
-                    <p className="text-[10px] font-black uppercase opacity-50 mb-1">Medium</p>
-                    <p className={`font-bold text-sm ${t.text}`}>{item.medium}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase opacity-50 mb-1">Discovery Count</p>
-                    <p className="font-bold text-sm text-teal-600">
-                      {item.views.toLocaleString()} sparks
-                    </p>
-                  </div>
+                  {item.medium && (
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-50 mb-1">Medium</p>
+                      <p className={`font-bold text-sm ${t.text}`}>{item.medium}</p>
+                    </div>
+                  )}
+                  {item.views > 0 && (
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-50 mb-1">Discovery Count</p>
+                      <p className="font-bold text-sm text-teal-600">
+                        {item.views.toLocaleString()} sparks
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <button
-                  className={`w-full py-5 bg-gradient-to-r ${t.gradient} text-white rounded-[2rem] font-black text-lg shadow-xl hover:scale-[1.02] transition active:scale-95 shadow-teal-500/20`}
+                  onClick={share}
+                  className={`w-full py-5 bg-gradient-to-r ${t.gradient} text-white rounded-[2rem] font-black text-lg shadow-xl hover:scale-[1.02] transition active:scale-95 shadow-teal-500/20 flex items-center justify-center gap-3`}
                 >
-                  Share Ahana&apos;s Light
+                  {copied ? <Check className="w-5 h-5" /> : <Share2 className="w-5 h-5" />}
+                  {copied ? 'Link copied!' : "Share Ahana's Light"}
                 </button>
               </div>
             </div>

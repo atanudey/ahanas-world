@@ -1,9 +1,9 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import { ViewSwitcher } from '@/components/shared/ViewSwitcher';
+import { Thumbnail } from '@/components/shared/MediaPlaceholder';
 import type { ContentItem } from '@/lib/constants';
 
 interface MinecraftDetailProps {
@@ -11,6 +11,9 @@ interface MinecraftDetailProps {
 }
 
 export function MinecraftDetail({ item }: MinecraftDetailProps) {
+  const isVideo = !!item.mediaUrl && !!item.mediaType?.startsWith('video/');
+  const isAudio = !!item.mediaUrl && !!item.mediaType?.startsWith('audio/');
+
   return (
     <div className="mc-bg mc-font min-h-screen text-white relative overflow-hidden flex items-center justify-center p-4">
       <div className="mc-overlay" />
@@ -27,14 +30,18 @@ export function MinecraftDetail({ item }: MinecraftDetailProps) {
         {/* Image side */}
         <div className="md:w-1/2 p-3 bg-black/40 relative flex flex-col border-r-0 md:border-r-4 border-white/20">
           <div className="flex-1 mc-glass overflow-hidden relative shadow-inner p-1 min-h-[200px]">
-            <Image
-              src={item.thumbnail}
-              alt={item.title}
-              fill
-              className="object-cover border-2 border-black"
-              sizes="50vw"
-              priority
-            />
+            {isVideo ? (
+              <video
+                src={item.mediaUrl}
+                poster={item.thumbnail || undefined}
+                controls
+                playsInline
+                preload="metadata"
+                className="absolute inset-0 w-full h-full object-contain bg-black border-2 border-black"
+              />
+            ) : (
+              <Thumbnail item={item} className="border-2 border-black" sizes="50vw" priority />
+            )}
             <div className="absolute top-3 left-3 mc-grass-block px-2 py-0.5 text-[10px] font-bold mc-text-shadow-sm shadow-[2px_2px_0_rgba(0,0,0,0.5)]">
               {item.category}
             </div>
@@ -46,6 +53,10 @@ export function MinecraftDetail({ item }: MinecraftDetailProps) {
           <h2 className="text-lg lg:text-xl font-mc mb-4 leading-tight text-[#55FFFF] mc-text-shadow">
             {item.title}
           </h2>
+
+          {isAudio && (
+            <audio src={item.mediaUrl} controls preload="metadata" className="w-full mb-4" />
+          )}
 
           <div className="space-y-4">
             <div>
