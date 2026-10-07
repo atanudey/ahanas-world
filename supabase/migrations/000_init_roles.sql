@@ -1,4 +1,9 @@
--- Create Supabase-compatible roles for auth, storage, and PostgREST
+-- Create Supabase-compatible roles for auth, storage, and PostgREST.
+--
+-- The LOGIN roles get a placeholder password here because a .sql file can't
+-- read the environment. In the Docker stack, docker/db/99-set-role-passwords.sh
+-- runs right after these migrations and sets them to POSTGRES_PASSWORD. If you
+-- apply the migrations by hand, change the passwords afterwards the same way.
 DO $$
 BEGIN
   -- Core roles

@@ -1,3 +1,9 @@
+# Local Supabase stack for Ahana's World (database, auth, REST, storage, Kong,
+# Studio). Copy keys into .env first — see README.md "Run with a local
+# Supabase". On the first start the SQL files in supabase/migrations run in
+# order, then docker/db/99-set-role-passwords.sh gives the service roles the
+# POSTGRES_PASSWORD (default "postgres"). To start again from an empty
+# database: docker compose down -v.
 version: "3.8"
 
 services:
@@ -12,7 +18,9 @@ services:
       POSTGRES_USER: postgres
     volumes:
       - db-data:/var/lib/postgresql/data
-      - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations
+      # Files directly in initdb.d run on first init (a subfolder would be ignored).
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+      - ./docker/db/99-set-role-passwords.sh:/docker-entrypoint-initdb.d/99-set-role-passwords.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -33,7 +41,7 @@ services:
       GOTRUE_API_PORT: 9999
       API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:8000}
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:postgres@db:5432/postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
       GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:3000}
       GOTRUE_URI_ALLOW_LIST: ""
       GOTRUE_DISABLE_SIGNUP: "false"
@@ -55,7 +63,7 @@ services:
     ports:
       - "3002:3000"
     environment:
-      PGRST_DB_URI: postgres://authenticator:postgres@db:5432/postgres
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
       PGRST_DB_SCHEMAS: public,storage,graphql_public
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
@@ -79,7 +87,7 @@ services:
       SERVICE_KEY: ${SERVICE_ROLE_KEY}
       POSTGREST_URL: http://rest:3000
       PGRST_JWT_SECRET: ${JWT_SECRET}
-      DATABASE_URL: postgres://supabase_storage_admin:postgres@db:5432/postgres
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
       FILE_SIZE_LIMIT: 52428800
       STORAGE_BACKEND: file
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
@@ -106,7 +114,7 @@ services:
       PG_META_DB_PORT: 5432
       PG_META_DB_NAME: postgres
       PG_META_DB_USER: supabase_admin
-      PG_META_DB_PASSWORD: postgres
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     restart: unless-stopped
 
   studio:
