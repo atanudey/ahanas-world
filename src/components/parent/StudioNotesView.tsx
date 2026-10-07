@@ -1,6 +1,7 @@
 'use client';
 
-import { Plus, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
+import { SampleDataBadge } from '@/components/parent/SampleDataBadge';
 import type { Theme } from '@/lib/theme';
 
 const STUDIO_NOTES = [
@@ -16,18 +17,18 @@ export function StudioNotesView({ t }: { t: Theme }) {
     <>
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-12 gap-4">
         <div>
-          <h2 className="text-4xl font-black italic mb-2 tracking-tight">Studio Notes</h2>
+          <div className="flex flex-wrap items-center gap-3 mb-2">
+          <h2 className="text-4xl font-black italic tracking-tight">Studio Notes</h2>
+          <SampleDataBadge />
+        </div>
           <p className={`${t.muted} font-medium`}>A private journal of Ahana&apos;s creative moments.</p>
         </div>
-        <button className={`bg-gradient-to-r ${t.gradient} text-white px-6 py-3 rounded-2xl font-bold shadow-xl flex items-center gap-2`}>
-          <Plus className="w-5 h-5" /> New Note
-        </button>
       </header>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
         <div className="xl:col-span-8 space-y-6">
           {STUDIO_NOTES.map((note) => (
-            <div key={note.id} className={`${t.card} border ${t.border} rounded-[2.5rem] p-6 lg:p-8 shadow-sm backdrop-blur-md hover:shadow-lg transition cursor-pointer group`}>
+            <div key={note.id} className={`${t.card} border ${t.border} rounded-[2.5rem] p-6 lg:p-8 shadow-sm backdrop-blur-md transition`}>
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <p className={`text-[10px] font-black uppercase tracking-widest ${t.muted} mb-2`}>{note.date}</p>

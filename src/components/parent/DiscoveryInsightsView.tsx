@@ -1,6 +1,7 @@
 'use client';
 
 import { Eye, Heart, Star, Users, TrendingUp, BarChart3 } from 'lucide-react';
+import { SampleDataBadge } from '@/components/parent/SampleDataBadge';
 import type { Theme } from '@/lib/theme';
 import { MOCK_CONTENT } from '@/lib/constants';
 
@@ -28,7 +29,10 @@ export function DiscoveryInsightsView({ t }: { t: Theme }) {
   return (
     <>
       <header className="mb-12">
-        <h2 className="text-4xl font-black italic mb-2 tracking-tight">Discovery Insights</h2>
+        <div className="flex flex-wrap items-center gap-3 mb-2">
+          <h2 className="text-4xl font-black italic tracking-tight">Discovery Insights</h2>
+          <SampleDataBadge />
+        </div>
         <p className={`${t.muted} font-medium`}>How Ahana&apos;s creative world is growing.</p>
       </header>
 
@@ -87,12 +91,14 @@ export function DiscoveryInsightsView({ t }: { t: Theme }) {
           <h3 className={`font-bold mb-8 ${t.text}`}>Weekly Activity</h3>
           <div className="flex items-end justify-between gap-3 h-48">
             {INSIGHTS_DATA.weeklyBreakdown.map((day) => (
-              <div key={day.label} className="flex-1 flex flex-col items-center gap-2">
+              <div key={day.label} className="flex-1 h-full flex flex-col items-center gap-2">
                 <span className={`text-xs font-bold ${t.muted}`}>{day.value}</span>
-                <div
-                  className={`w-full rounded-xl bg-gradient-to-t ${t.gradient} opacity-80 hover:opacity-100 transition`}
-                  style={{ height: `${(day.value / maxBar) * 100}%` }}
-                />
+                <div className="w-full flex-1 min-h-0 flex items-end">
+                  <div
+                    className={`w-full rounded-xl bg-gradient-to-t ${t.gradient} opacity-80 hover:opacity-100 transition`}
+                    style={{ height: `${(day.value / maxBar) * 100}%` }}
+                  />
+                </div>
                 <span className={`text-[10px] font-black uppercase ${t.muted}`}>{day.label}</span>
               </div>
             ))}

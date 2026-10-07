@@ -1,6 +1,7 @@
 'use client';
 
-import { Plus, Calendar, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronRight } from 'lucide-react';
+import { SampleDataBadge } from '@/components/parent/SampleDataBadge';
 import type { Theme } from '@/lib/theme';
 
 const CALENDAR_EVENTS = [
@@ -16,12 +17,12 @@ export function ReleaseCalendarView({ t }: { t: Theme }) {
     <>
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-12 gap-4">
         <div>
-          <h2 className="text-4xl font-black italic mb-2 tracking-tight">Release Calendar</h2>
+          <div className="flex flex-wrap items-center gap-3 mb-2">
+          <h2 className="text-4xl font-black italic tracking-tight">Release Calendar</h2>
+          <SampleDataBadge />
+        </div>
           <p className={`${t.muted} font-medium`}>Upcoming scheduled releases and deadlines.</p>
         </div>
-        <button className={`bg-gradient-to-r ${t.gradient} text-white px-6 py-3 rounded-2xl font-bold shadow-xl flex items-center gap-2`}>
-          <Plus className="w-5 h-5" /> Schedule Release
-        </button>
       </header>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
@@ -29,9 +30,9 @@ export function ReleaseCalendarView({ t }: { t: Theme }) {
           <h3 className={`text-sm font-black uppercase tracking-widest ${t.muted} mb-6`}>Upcoming Releases</h3>
           <div className="space-y-4">
             {CALENDAR_EVENTS.map((event) => (
-              <div key={event.id} className="flex items-center justify-between p-5 lg:p-6 bg-black/5 rounded-3xl border border-transparent hover:border-violet-500/20 transition group cursor-pointer">
+              <div key={event.id} className="flex items-center justify-between p-5 lg:p-6 bg-black/5 rounded-3xl border border-transparent transition">
                 <div className="flex items-center gap-4 lg:gap-6">
-                  <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center ${
+                  <div className={`w-14 h-14 shrink-0 rounded-2xl flex flex-col items-center justify-center ${
                     event.status === 'scheduled' ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'
                   }`}>
                     <span className="text-[10px] font-black uppercase leading-none">{event.date.split(' ')[0]}</span>

@@ -15,11 +15,12 @@ const CAPTURE_ACTIONS: { icon: typeof Mic; label: string; capture: MinecraftCapt
   { icon: Book, label: 'Read', capture: 'Read' },
 ];
 
-const MISSIONS = [
-  { text: 'Practice Nebula melody', xp: 50, done: false },
-  { text: 'Pick a color for Mars', xp: 30, done: true },
-  { text: 'Read the Moon Story', xp: 20, done: false },
-];
+export interface MinecraftMission {
+  id: string;
+  text: string;
+  xp: number;
+  done: boolean;
+}
 
 const BADGE_ITEMS = [
   { icon: Award, color: 'text-[#FFFF55]' },
@@ -45,13 +46,17 @@ const MOBS = [
   { src: '/mobs/cat.png', alt: 'Kitten', className: 'bottom-[25%] left-[1%]', height: 'h-7 lg:h-10', delay: '2s' },
 ];
 
-export function MinecraftHub({ onCapture }: { onCapture?: (type: MinecraftCaptureType) => void }) {
+export function MinecraftHub({ onCapture, missions, onToggleMission }: {
+  onCapture?: (type: MinecraftCaptureType) => void;
+  missions: MinecraftMission[];
+  onToggleMission: (id: string) => void;
+}) {
   return (
-    <div className="mc-bg mc-font h-screen text-white relative overflow-hidden flex flex-col">
+    <div className="mc-bg mc-font min-h-screen text-white relative flex flex-col">
       <div className="mc-overlay" />
 
       {/* Mobs — bottom of screen */}
-      <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
+      <div className="hidden md:block absolute inset-0 pointer-events-none z-20 overflow-hidden">
         {MOBS.map((mob, i) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -78,7 +83,7 @@ export function MinecraftHub({ onCapture }: { onCapture?: (type: MinecraftCaptur
         <div className="mc-glass px-3 py-1.5 flex items-center gap-2">
           <Award className="text-[#FFFF55] drop-shadow-md w-5 h-5" />
           <div className="text-right">
-            <p className="text-[8px] text-gray-300 mc-text-shadow-sm uppercase tracking-widest leading-none">
+            <p className="text-[10px] text-gray-300 mc-text-shadow-sm uppercase tracking-widest leading-none">
               XP Level
             </p>
             <p className="text-lg font-mc text-[#55FF55] mc-text-shadow leading-none">
@@ -89,7 +94,7 @@ export function MinecraftHub({ onCapture }: { onCapture?: (type: MinecraftCaptur
       </header>
 
       {/* Center content area */}
-      <div className="flex-1 flex items-center justify-center z-10 px-4 pb-20">
+      <div className="flex-1 flex items-center justify-center z-10 px-4 py-4 pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 max-w-5xl w-full">
 
           {/* Capture / Crafting */}
@@ -133,16 +138,19 @@ export function MinecraftHub({ onCapture }: { onCapture?: (type: MinecraftCaptur
                 Today&apos;s Quest
               </h3>
               <div className="space-y-2 flex-1 flex flex-col justify-center">
-                {MISSIONS.map((m, i) => (
-                  <div
-                    key={i}
-                    className={`p-2 flex items-center cursor-pointer border-2 transition-all ${
+                {missions.map((m) => (
+                  <button
+                    type="button"
+                    key={m.id}
+                    onClick={() => onToggleMission(m.id)}
+                    aria-pressed={m.done}
+                    className={`w-full text-left p-2 flex items-center justify-between gap-2 border-2 transition-all ${
                       m.done
                         ? 'bg-[#55FF55]/20 border-[#55FF55]'
                         : 'bg-black/40 border-white/20 hover:border-white/50'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <div
                         className={`w-5 h-5 border-2 flex items-center justify-center shadow-inner shrink-0 ${
                           m.done
@@ -162,7 +170,10 @@ export function MinecraftHub({ onCapture }: { onCapture?: (type: MinecraftCaptur
                         {m.text}
                       </span>
                     </div>
-                  </div>
+                    <span className={`shrink-0 text-[10px] mc-text-shadow-sm ${m.done ? 'text-[#55FF55]' : 'text-gray-300'}`}>
+                      +{m.xp} XP
+                    </span>
+                  </button>
                 ))}
               </div>
             </div>

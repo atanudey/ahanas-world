@@ -3,6 +3,7 @@
 import { Eye } from 'lucide-react';
 import type { Theme } from '@/lib/theme';
 import { getThumbnailUrl } from '@/lib/utils/storage';
+import { MediaPlaceholder } from '@/components/shared/MediaPlaceholder';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ContentRecord = any;
@@ -19,22 +20,30 @@ export function ArchiveRoomView({ t, allContent, onOpenDetail }: {
         <p className={`${t.muted} font-medium`}>A collection of all published and past creative works.</p>
       </header>
 
+      {allContent.length === 0 && (
+        <p className={`${t.muted} font-medium`}>No creations yet — approved captures will be collected here.</p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {allContent.map((item: ContentRecord) => {
-          const thumbSrc = item.thumbnail_path
-            ? getThumbnailUrl(item.thumbnail_path)
-            : item.thumbnail || 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=600';
+          const thumbSrc = item.thumbnail_path ? getThumbnailUrl(item.thumbnail_path) : item.thumbnail || null;
           const isDb = !!item.created_at;
 
           return (
-            <div
+            <button
+              type="button"
               key={item.id}
-              onClick={() => isDb ? onOpenDetail(item.id) : undefined}
-              className={`${t.card} border ${t.border} rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl transition group cursor-pointer backdrop-blur-md`}
+              disabled={!isDb}
+              onClick={() => onOpenDetail(item.id)}
+              className={`text-left ${t.card} border ${t.border} rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl transition group backdrop-blur-md disabled:cursor-default`}
             >
               <div className="relative h-48 overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={thumbSrc} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                {thumbSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={thumbSrc} alt="" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                ) : (
+                  <MediaPlaceholder type={item.type} className="w-full h-full" iconClassName="w-12 h-12" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
                   <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${
@@ -60,7 +69,7 @@ export function ArchiveRoomView({ t, allContent, onOpenDetail }: {
                   </div>
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

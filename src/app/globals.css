@@ -206,3 +206,9 @@ body {
     box-shadow: inset 4px 4px 10px rgba(0, 0, 0, 0.4);
   }
 }
+
+/* The pixel theme has no rounded corners: the shared parent/hub views use the
+   same components as the other themes, so square their utilities here. */
+html[data-theme="minecraft"] [class*="rounded"] {
+  border-radius: 0 !important;
+}

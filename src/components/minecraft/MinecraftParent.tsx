@@ -1,15 +1,32 @@
 'use client';
 
-import Image from 'next/image';
-import { Pickaxe, Plus, Settings } from 'lucide-react';
-import { ViewSwitcher } from '@/components/shared/ViewSwitcher';
-import { MOCK_CONTENT } from '@/lib/constants';
+import Link from 'next/link';
+import type { ReactNode } from 'react';
+import { LogOut, Pickaxe } from 'lucide-react';
 
-const SIDEBAR_LINKS = ['Creative Pulse', 'Release Calendar', 'Studio Notes', 'Archive'];
+/**
+ * Pixel-art frame for the parent dashboard. The section views are shared with
+ * the other themes (they take their colours from the theme tokens), so every
+ * section works here too; this only supplies the chrome and navigation.
+ */
+export function MinecraftParent({
+  sections,
+  activeSection,
+  onSectionChange,
+  children,
+}: {
+  sections: readonly string[];
+  activeSection: string;
+  onSectionChange: (section: string) => void;
+  children: ReactNode;
+}) {
+  const linkClass = (section: string) =>
+    section === activeSection
+      ? 'mc-grass-block text-white'
+      : 'text-gray-300 hover:text-white hover:bg-white/10 border-2 border-transparent';
 
-export function MinecraftParent() {
   return (
-    <div className="mc-bg mc-font min-h-screen text-white relative overflow-hidden">
+    <div className="mc-bg mc-font min-h-screen text-white relative">
       <div className="mc-overlay" />
 
       <div className="min-h-screen bg-black/60 backdrop-blur-md flex relative z-10">
@@ -24,81 +41,44 @@ export function MinecraftParent() {
             </p>
           </div>
           <nav className="space-y-2">
-            {SIDEBAR_LINKS.map((link) => (
+            {sections.map((section) => (
               <button
-                key={link}
-                className={`w-full text-left px-3 py-2 text-xs mc-text-shadow-sm transition-all ${
-                  link === 'Creative Pulse'
-                    ? 'mc-grass-block text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/10 border-2 border-transparent'
-                }`}
+                key={section}
+                onClick={() => onSectionChange(section)}
+                aria-current={section === activeSection ? 'page' : undefined}
+                className={`w-full text-left px-3 py-2 text-xs mc-text-shadow-sm transition-all ${linkClass(section)}`}
               >
-                {link}
+                {section}
               </button>
             ))}
           </nav>
+          <Link href="/" className="mt-auto pt-6 flex items-center gap-2 text-xs text-gray-300 mc-text-shadow-sm hover:text-white">
+            <LogOut className="w-4 h-4" /> Leave HQ
+          </Link>
         </aside>
 
         {/* Main */}
-        <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
-          <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 mc-glass p-4 gap-3">
-            <div>
-              <h2 className="text-xl lg:text-2xl font-mc text-white mc-text-shadow mb-1">
-                The Release Queue
-              </h2>
-              <p className="text-gray-300 mc-text-shadow-sm text-xs">
-                Managing Ahana&apos;s blocks.
-              </p>
-            </div>
-            <button className="mc-grass-block px-4 py-2 text-xs mc-text-shadow-sm flex items-center gap-2 hover:brightness-110">
-              <Plus className="w-4 h-4" /> Add New Block
-            </button>
-          </header>
+        <main className="flex-1 p-4 lg:p-6 pb-24 overflow-y-auto min-w-0">
+          {/* Section links for small screens */}
+          <nav className="lg:hidden flex gap-2 overflow-x-auto pb-3 mb-4" aria-label="Sections">
+            {sections.map((section) => (
+              <button
+                key={section}
+                onClick={() => onSectionChange(section)}
+                aria-current={section === activeSection ? 'page' : undefined}
+                className={`shrink-0 px-3 py-2 text-xs mc-text-shadow-sm ${linkClass(section)}`}
+              >
+                {section}
+              </button>
+            ))}
+            <Link href="/" className="shrink-0 px-3 py-2 text-xs text-gray-300 mc-text-shadow-sm border-2 border-transparent hover:text-white">
+              Leave
+            </Link>
+          </nav>
 
-          <div className="mc-glass p-4">
-            <div className="space-y-3">
-              {MOCK_CONTENT.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-3 bg-black/40 border-2 border-white/10 hover:border-white/50 transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <Image
-                      src={item.thumbnail}
-                      alt={item.title}
-                      width={48}
-                      height={48}
-                      className="w-10 h-10 lg:w-12 lg:h-12 border-2 border-black object-cover"
-                    />
-                    <div>
-                      <p className="text-sm font-mc text-[#55FFFF] mc-text-shadow">
-                        {item.title}
-                      </p>
-                      <p className="text-[10px] text-gray-300 mc-text-shadow-sm uppercase tracking-wide">
-                        {item.category} &bull; {item.medium}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`px-3 py-1 border-2 text-[10px] mc-text-shadow-sm ${
-                        item.status === 'published'
-                          ? 'bg-[#55FF55]/20 border-[#55FF55] text-[#55FF55]'
-                          : 'bg-[#FFFF55]/20 border-[#FFFF55] text-[#FFFF55]'
-                      }`}
-                    >
-                      {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                    </span>
-                    <Settings className="w-4 h-4 text-gray-300 hover:text-white" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {children}
         </main>
       </div>
-
-      <ViewSwitcher />
     </div>
   );
 }

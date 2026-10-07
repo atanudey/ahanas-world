@@ -32,27 +32,32 @@ export function PublishSettingsView({ t }: { t: Theme }) {
   const [pinSaving, setPinSaving] = useState(false);
   const [pinSaved, setPinSaved] = useState(false);
 
-  useEffect(() => {
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  // Also used by the Retry button, so every setState happens after the request.
+  const loadSettings = () =>
     fetch('/api/settings')
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Request failed (${r.status})`))))
       .then((data) => {
-        if (data) {
-          setSettings(data);
-          setCredForm({
-            facebook_app_id: data.facebook_app_id || '',
-            facebook_app_secret: data.facebook_app_secret || '',
-            google_client_id: data.google_client_id || '',
-            google_client_secret: data.google_client_secret || '',
-            google_redirect_uri: data.google_redirect_uri || '',
-            site_url: data.site_url || '',
-          });
-          // Auto-expand credentials if nothing is configured
-          if (!data.facebook_app_id && !data.google_client_id) {
-            setCredExpanded(true);
-          }
+        setLoadFailed(false);
+        setSettings(data);
+        setCredForm({
+          facebook_app_id: data.facebook_app_id || '',
+          facebook_app_secret: data.facebook_app_secret || '',
+          google_client_id: data.google_client_id || '',
+          google_client_secret: data.google_client_secret || '',
+          google_redirect_uri: data.google_redirect_uri || '',
+          site_url: data.site_url || '',
+        });
+        // Auto-expand credentials if nothing is configured
+        if (!data.facebook_app_id && !data.google_client_id) {
+          setCredExpanded(true);
         }
       })
-      .catch(() => {});
+      .catch(() => setLoadFailed(true));
+
+  useEffect(() => {
+    loadSettings();
   }, []);
 
   const toggle = async (key: string) => {
@@ -177,7 +182,7 @@ export function PublishSettingsView({ t }: { t: Theme }) {
               type="button"
               onClick={() => setShowSecrets({ ...showSecrets, [name]: !isVisible })}
               aria-label={isVisible ? `Hide ${label}` : `Show ${label}`}
-              className={`p-1.5 rounded-lg ${t.muted} hover:bg-black/5 transition`}
+              className={`p-2 rounded-lg ${t.muted} hover:bg-black/5 transition`}
             >
               {isVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -430,8 +435,14 @@ export function PublishSettingsView({ t }: { t: Theme }) {
               </div>
             )}
 
-            {!settings && (
+            {!settings && !loadFailed && (
               <p className={`text-sm ${t.muted} py-4`}>Loading settings...</p>
+            )}
+            {!settings && loadFailed && (
+              <div role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 flex items-center justify-between gap-3">
+                <span>Couldn&apos;t load settings.</span>
+                <button onClick={loadSettings} className="shrink-0 font-bold underline">Retry</button>
+              </div>
             )}
           </div>
 

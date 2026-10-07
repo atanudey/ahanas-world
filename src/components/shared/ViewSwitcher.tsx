@@ -21,12 +21,12 @@ export function ViewSwitcher() {
       : 'public';
 
   return (
-    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] ${t.card} border ${t.border} p-1 rounded-full shadow-2xl flex gap-1 backdrop-blur-xl`}>
+    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 ${t.card} border ${t.border} p-1 rounded-full shadow-2xl flex gap-1 backdrop-blur-xl`}>
       {VIEWS.map((v) => (
         <Link
           key={v.id}
           href={v.href}
-          className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+          className={`px-4 min-h-10 flex items-center rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${
             currentView === v.id
               ? `bg-gradient-to-r ${t.gradient} text-white shadow-lg`
               : `${t.muted}`

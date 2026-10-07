@@ -217,7 +217,7 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-300 transition"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-300 transition"
               />
             </div>
             <div>
@@ -226,7 +226,7 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 transition"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 transition"
               />
             </div>
             <div>
@@ -236,7 +236,7 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
                 onChange={(e) => setStory(e.target.value)}
                 rows={2}
                 placeholder="Write the story behind this creation..."
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 transition"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 transition"
               />
             </div>
             <button
@@ -286,18 +286,19 @@ export function ContentDetailPanel({ content, onClose, onUpdate }: ContentDetail
                     </div>
                     <div className="flex items-center gap-2">
                       {post.status === 'published' && post.platform_url && (
-                        <a href={post.platform_url} target="_blank" rel="noopener noreferrer" aria-label={`View on ${post.platform}`} className="p-1.5 rounded-lg hover:bg-slate-200 transition">
-                          <ExternalLink className="w-3 h-3 text-slate-500" />
+                        <a href={post.platform_url} target="_blank" rel="noopener noreferrer" aria-label={`View on ${post.platform}`} className="p-2 rounded-lg hover:bg-slate-200 transition">
+                          <ExternalLink className="w-4 h-4 text-slate-500" />
                         </a>
                       )}
-                      {post.status === 'failed' && (
+                      {(post.status === 'failed' || post.status === 'skipped') && (
                         <button
                           onClick={publish}
                           disabled={publishing}
-                          aria-label={`Retry ${post.platform}`}
-                          className="p-1.5 rounded-lg hover:bg-slate-200 transition text-amber-600 disabled:opacity-50"
+                          title={post.status === 'failed' ? 'Retry' : 'Try publishing now'}
+                          aria-label={post.status === 'failed' ? `Retry ${post.platform}` : `Publish to ${post.platform}`}
+                          className="p-2 rounded-lg hover:bg-slate-200 transition text-amber-600 disabled:opacity-50"
                         >
-                          <RotateCcw className="w-3 h-3" />
+                          <RotateCcw className="w-4 h-4" />
                         </button>
                       )}
                       <span className={`w-2 h-2 rounded-full ${

@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import {
   Sparkles, Award, Rocket, Music, Palette,
   Sun, Mic, Camera, PenTool, Book,
-  CheckCircle2, ChevronRight, LogOut,
+  CheckCircle2, LogOut,
   X, Trophy, Gamepad2,
   Upload, Check, AlertCircle,
 } from 'lucide-react';
@@ -55,8 +55,8 @@ const INITIAL_BADGES: Badge[] = [
   { icon: Rocket, name: 'Space Explorer', description: 'Earn 50 XP total', unlocked: true, unlocksAt: 50 },
   { icon: Music, name: 'Melody Maker', description: 'Capture 3 songs', unlocked: true, unlocksAt: 80 },
   { icon: Palette, name: 'Color Wizard', description: 'Capture 3 drawings', unlocked: true, unlocksAt: 100 },
-  { icon: Trophy, name: 'Quest Champion', description: 'Complete all quests', unlocked: false, unlocksAt: 200 },
-  { icon: Gamepad2, name: 'Challenge Master', description: 'Complete 5 space challenges', unlocked: false, unlocksAt: 300 },
+  { icon: Trophy, name: 'Quest Champion', description: 'Complete all quests', unlocked: false, unlocksAt: 800 },
+  { icon: Gamepad2, name: 'Challenge Master', description: 'Complete 5 space challenges', unlocked: false, unlocksAt: 1000 },
 ];
 
 const BASE_XP = 730; // XP already earned before current quests
@@ -76,6 +76,7 @@ export default function HubPage() {
   const [xpPopup, setXpPopup] = useState<{ xp: number; id: string } | null>(null);
   const { uploadState, upload, reset: resetUpload } = useUploadContent();
 
+  const onDark = mode === 'moonlit';
   const earnedXp = missions.filter((m) => m.done).reduce((sum, m) => sum + m.xp, 0);
   const totalXp = BASE_XP + earnedXp;
   const level = computeLevel(totalXp);
@@ -208,7 +209,7 @@ export default function HubPage() {
     return (
       <>
         {captureOverlays}
-        <MinecraftHub onCapture={handleCapture} />
+        <MinecraftHub onCapture={handleCapture} missions={missions} onToggleMission={toggleMission} />
       </>
     );
   }
@@ -286,7 +287,7 @@ export default function HubPage() {
               </div>
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl lg:text-3xl font-black italic tracking-tighter truncate">
+              <h1 className="text-base sm:text-2xl lg:text-3xl font-black italic tracking-tighter leading-tight">
                 AHANA&apos;S STUDIO
               </h1>
               <p className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${t.muted} hidden sm:block`}>
@@ -299,23 +300,23 @@ export default function HubPage() {
             <div className={`${t.glass} px-2.5 sm:px-4 lg:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl flex items-center gap-2 sm:gap-3`}>
               <Award className="text-teal-500 w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
               <div className="text-right">
-                <p className="text-[8px] sm:text-[10px] font-black opacity-60 uppercase tracking-widest leading-none">Lvl</p>
-                <p className="text-sm sm:text-lg lg:text-xl font-black text-teal-700">{level}</p>
+                <p className="text-[10px] font-black opacity-60 uppercase tracking-widest leading-none">Lvl</p>
+                <p className={`text-sm sm:text-lg lg:text-xl font-black ${t.highlight}`}>{level}</p>
               </div>
             </div>
             <div className={`${t.glass} px-2.5 sm:px-4 lg:px-6 py-2 sm:py-3 rounded-xl sm:rounded-2xl flex items-center gap-2 sm:gap-3`}>
               <Sparkles className="text-violet-500 w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
               <div className="text-right">
-                <p className="text-[8px] sm:text-[10px] font-black opacity-60 uppercase tracking-widest leading-none">XP</p>
-                <p className="text-sm sm:text-lg lg:text-xl font-black text-violet-600">{totalXp}</p>
+                <p className="text-[10px] font-black opacity-60 uppercase tracking-widest leading-none">XP</p>
+                <p className={`text-sm sm:text-lg lg:text-xl font-black ${t.accent}`}>{totalXp}</p>
               </div>
             </div>
             <Link
               href="/"
               aria-label="Exit studio"
-              className={`bg-white/80 border ${t.border} p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl hover:bg-white transition backdrop-blur-xl shadow-sm flex items-center`}
+              className={`${t.glass} p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl hover:brightness-110 transition flex items-center`}
             >
-              <LogOut className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${t.muted}`} />
+              <LogOut className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${t.text}`} />
             </Link>
           </div>
         </div>
@@ -366,13 +367,13 @@ export default function HubPage() {
                   key={m.id}
                   onClick={() => toggleMission(m.id)}
                   aria-pressed={m.done}
-                  className={`w-full text-left p-3 sm:p-5 rounded-xl sm:rounded-2xl border ${
+                  className={`w-full text-left p-3 sm:p-5 rounded-xl sm:rounded-2xl ${
                     m.done
-                      ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                      : 'bg-slate-50 border-transparent text-slate-800'
-                  } flex items-center justify-between group cursor-pointer hover:bg-white transition shadow-sm relative`}
+                      ? `bg-emerald-500/15 border border-emerald-400/30 ${onDark ? 'text-emerald-300' : 'text-emerald-700'}`
+                      : `${t.paper} ${t.text}`
+                  } flex items-center justify-between gap-3 group cursor-pointer hover:brightness-110 transition shadow-sm relative`}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 min-w-0">
                     <div
                       className={`w-6 h-6 rounded-full border-2 transition-all ${
                         m.done
@@ -384,11 +385,11 @@ export default function HubPage() {
                         <CheckCircle2 className="w-4 h-4 text-white" />
                       )}
                     </div>
-                    <span className={`font-bold text-sm ${m.done ? 'line-through opacity-70' : ''}`}>
+                    <span className={`font-bold text-sm break-words ${m.done ? 'line-through opacity-70' : ''}`}>
                       {m.text}
                     </span>
                   </div>
-                  <span className={`text-xs sm:text-[10px] font-black whitespace-nowrap ${m.done ? 'text-emerald-500' : 'opacity-60'}`}>
+                  <span className={`shrink-0 text-xs sm:text-[10px] font-black whitespace-nowrap ${m.done ? '' : 'opacity-60'}`}>
                     +{m.xp} XP
                   </span>
 
@@ -403,19 +404,18 @@ export default function HubPage() {
             </div>
 
             {/* Space Challenge */}
-            <div className="mt-8 p-6 bg-sky-50 rounded-3xl flex items-center gap-4 border border-sky-100 shadow-inner cursor-pointer hover:bg-sky-100 transition group">
-              <div className="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center text-sky-600 group-hover:scale-110 transition">
+            <div className={`mt-8 p-6 rounded-3xl flex items-center gap-4 ${t.paper}`}>
+              <div className="w-10 h-10 shrink-0 bg-sky-500/15 rounded-xl flex items-center justify-center text-sky-500">
                 <Rocket className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-sky-900">
+                <p className={`text-xs font-bold ${t.text}`}>
                   Space Challenge
                 </p>
-                <p className="text-xs sm:text-[10px] font-medium text-sky-700">
+                <p className={`text-xs sm:text-[10px] font-medium ${t.muted}`}>
                   Why do the stars twinkle?
                 </p>
               </div>
-              <ChevronRight className="ml-auto text-sky-400 group-hover:translate-x-1 transition" />
             </div>
           </div>
         </div>
@@ -425,7 +425,7 @@ export default function HubPage() {
           <div
             className={`${t.glass} p-8 rounded-[3rem]`}
           >
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-teal-600 mb-6">
+            <h3 className={`text-[10px] font-black uppercase tracking-widest ${t.accent} mb-6`}>
               Badges Unlocked
             </h3>
             <div className="grid grid-cols-2 gap-4">
@@ -435,17 +435,15 @@ export default function HubPage() {
                   key={i}
                   onClick={() => setSelectedBadge(badge)}
                   aria-label={badge.unlocked ? badge.name : `${badge.name} (locked)`}
-                  className={`aspect-square rounded-[1.5rem] flex items-center justify-center group cursor-pointer hover:scale-110 transition border relative ${
-                    badge.unlocked
-                      ? 'bg-teal-50 border-teal-100'
-                      : 'bg-slate-100 border-slate-200 opacity-40'
+                  className={`aspect-square rounded-[1.5rem] flex items-center justify-center group cursor-pointer hover:scale-110 transition relative ${t.paper} ${
+                    badge.unlocked ? '' : 'opacity-40'
                   }`}
                   title={badge.name}
                 >
                   <badge.icon className={`w-10 h-10 transition-colors ${
                     badge.unlocked
                       ? 'text-teal-500 group-hover:text-emerald-500'
-                      : 'text-slate-400'
+                      : 'opacity-50'
                   }`} />
                   {!badge.unlocked && (
                     <div className="absolute inset-0 rounded-[1.5rem] flex items-center justify-center">
@@ -465,11 +463,11 @@ export default function HubPage() {
               const progress = Math.min((totalXp / nextLocked.unlocksAt) * 100, 100);
               return (
                 <div className="mt-6">
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-teal-600 mb-2">
+                  <div className={`flex justify-between flex-wrap gap-x-3 text-[10px] font-black uppercase tracking-widest ${t.accent} mb-2`}>
                     <span>Next: {nextLocked.name}</span>
-                    <span>{totalXp}/{nextLocked.unlocksAt}</span>
+                    <span className="tabular-nums">{totalXp}/{nextLocked.unlocksAt}</span>
                   </div>
-                  <div className="w-full h-2 bg-teal-100 rounded-full overflow-hidden">
+                  <div className={`w-full h-2 ${onDark ? 'bg-white/10' : 'bg-black/10'} rounded-full overflow-hidden`}>
                     <div
                       className="h-full bg-gradient-to-r from-teal-400 to-emerald-500 rounded-full transition-all duration-500"
                       style={{ width: `${progress}%` }}

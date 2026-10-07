@@ -37,8 +37,8 @@ export function PublicNav() {
               href={tab.href}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 isActive(tab.href)
-                  ? `bg-white shadow-sm border ${t.border} ${t.text}`
-                  : `${t.muted} hover:${t.text}`
+                  ? 'bg-white shadow-sm text-slate-900'
+                  : `${t.muted} hover:bg-black/5`
               }`}
             >
               {tab.label}

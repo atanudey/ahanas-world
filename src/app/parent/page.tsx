@@ -39,23 +39,28 @@ const SIDEBAR_LINKS: { label: SidebarSection; icon: typeof Calendar }[] = [
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ContentRecord = any;
 
+// Sample content stands in for the database only in development, so the
+// dashboard never presents example captures as if they were Ahana's.
+const SAMPLES_WHEN_UNAVAILABLE = process.env.NODE_ENV !== 'production';
+
 export default function ParentPage() {
   const { mode, theme: t } = useTheme();
   const [activeSection, setActiveSection] = useState<SidebarSection>('Creative Pulse');
-  const [dbContent, setDbContent] = useState<ContentRecord[]>([]);
+  // null until the first load succeeds
+  const [dbContent, setDbContent] = useState<ContentRecord[] | null>(null);
+  const [contentError, setContentError] = useState<string | null>(null);
   const [selectedContent, setSelectedContent] = useState<ContentRecord | null>(null);
-  const [loadingContent, setLoadingContent] = useState(false);
+  const [loadingContent, setLoadingContent] = useState(true);
 
   const fetchContent = useCallback(async () => {
     setLoadingContent(true);
     try {
       const res = await fetch('/api/content');
-      if (res.ok) {
-        const data = await res.json();
-        setDbContent(data);
-      }
-    } catch {
-      // API might not be available — fall back silently
+      if (!res.ok) throw new Error(`the server answered ${res.status}`);
+      setDbContent(await res.json());
+      setContentError(null);
+    } catch (err) {
+      setContentError((err as Error).message);
     } finally {
       setLoadingContent(false);
     }
@@ -90,10 +95,65 @@ export default function ParentPage() {
     } catch { /* silently fail */ }
   }, []);
 
-  const allContent = dbContent.length > 0 ? dbContent : MOCK_CONTENT;
+  const allContent: ContentRecord[] = dbContent ?? (SAMPLES_WHEN_UNAVAILABLE ? MOCK_CONTENT : []);
+  const usingSamples = dbContent === null && allContent.length > 0;
+
+  const notice = oauthNotice && (
+    <div
+      role="status"
+      className={`mb-6 rounded-2xl px-5 py-3 text-sm font-bold flex items-center justify-between gap-4 ${
+        oauthNotice.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+      }`}
+    >
+      {oauthNotice.text}
+      <button onClick={() => setOauthNotice(null)} aria-label="Dismiss" className="opacity-60 hover:opacity-100">✕</button>
+    </div>
+  );
+
+  const sectionView = (
+    <>
+      {activeSection === 'Creative Pulse' && (
+        <CreativePulseView
+          t={t}
+          allContent={allContent}
+          loading={loadingContent}
+          error={contentError}
+          usingSamples={usingSamples}
+          onOpenDetail={openContentDetail}
+          onRefresh={fetchContent}
+        />
+      )}
+      {activeSection === 'Release Calendar' && <ReleaseCalendarView t={t} />}
+      {activeSection === 'Studio Notes' && <StudioNotesView t={t} />}
+      {activeSection === 'Archive Room' && <ArchiveRoomView t={t} allContent={allContent} onOpenDetail={openContentDetail} />}
+      {activeSection === 'Discovery Insights' && <DiscoveryInsightsView t={t} />}
+      {activeSection === 'Publish Settings' && <PublishSettingsView t={t} />}
+    </>
+  );
+
+  const detailPanel = selectedContent && (
+    <ContentDetailPanel
+      content={selectedContent}
+      onClose={() => setSelectedContent(null)}
+      onUpdate={() => { fetchContent(); setSelectedContent(null); }}
+    />
+  );
 
   if (mode === 'minecraft') {
-    return <MinecraftParent />;
+    return (
+      <>
+        <MinecraftParent
+          sections={SIDEBAR_LINKS.map((l) => l.label)}
+          activeSection={activeSection}
+          onSectionChange={(label) => setActiveSection(label as SidebarSection)}
+        >
+          {notice}
+          {sectionView}
+        </MinecraftParent>
+        {detailPanel}
+        <ViewSwitcher />
+      </>
+    );
   }
 
   return (
@@ -114,6 +174,7 @@ export default function ParentPage() {
             <button
               key={label}
               onClick={() => setActiveSection(label)}
+              aria-current={label === activeSection ? 'page' : undefined}
               className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-3 ${
                 label === activeSection
                   ? `${t.accentBg} ${t.accent} ring-2 ring-indigo-500/30`
@@ -134,7 +195,7 @@ export default function ParentPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 sm:p-8 lg:p-12 overflow-y-auto relative min-w-0">
+      <main className="flex-1 p-4 sm:p-8 lg:p-12 pb-24 overflow-y-auto relative min-w-0">
         {/* Section nav for small screens — the sidebar is desktop-only. */}
         <nav className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-6 -mx-1 px-1" aria-label="Sections">
           {SIDEBAR_LINKS.map(({ label, icon: Icon }) => (
@@ -155,35 +216,11 @@ export default function ParentPage() {
           </Link>
         </nav>
 
-        {oauthNotice && (
-          <div
-            role="status"
-            className={`mb-6 rounded-2xl px-5 py-3 text-sm font-bold flex items-center justify-between gap-4 ${
-              oauthNotice.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-            }`}
-          >
-            {oauthNotice.text}
-            <button onClick={() => setOauthNotice(null)} aria-label="Dismiss" className="opacity-60 hover:opacity-100">✕</button>
-          </div>
-        )}
-
-        {activeSection === 'Creative Pulse' && (
-          <CreativePulseView t={t} allContent={allContent} loading={loadingContent} onOpenDetail={openContentDetail} onRefresh={fetchContent} />
-        )}
-        {activeSection === 'Release Calendar' && <ReleaseCalendarView t={t} />}
-        {activeSection === 'Studio Notes' && <StudioNotesView t={t} />}
-        {activeSection === 'Archive Room' && <ArchiveRoomView t={t} allContent={allContent} onOpenDetail={openContentDetail} />}
-        {activeSection === 'Discovery Insights' && <DiscoveryInsightsView t={t} />}
-        {activeSection === 'Publish Settings' && <PublishSettingsView t={t} />}
+        {notice}
+        {sectionView}
       </main>
 
-      {selectedContent && (
-        <ContentDetailPanel
-          content={selectedContent}
-          onClose={() => setSelectedContent(null)}
-          onUpdate={() => { fetchContent(); setSelectedContent(null); }}
-        />
-      )}
+      {detailPanel}
 
       <ViewSwitcher />
     </div>

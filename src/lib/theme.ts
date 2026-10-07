@@ -16,6 +16,8 @@ export interface Theme {
   shadow: string;
   texture: string;
   glass: string;
+  /** A nested surface inside a card (quest rows, info boxes) that stays readable in every theme. */
+  paper: string;
 }
 
 export const THEMES: Record<ThemeMode, Theme> = {
@@ -35,6 +37,7 @@ export const THEMES: Record<ThemeMode, Theme> = {
     shadow: 'shadow-violet-500/20',
     texture: 'opacity-10 pointer-events-none',
     glass: 'bg-gradient-to-br from-indigo-900/30 to-purple-900/20 backdrop-blur-2xl border border-indigo-400/15 shadow-2xl shadow-purple-900/20',
+    paper: 'bg-white/5 border border-white/10',
   },
   storybook: {
     name: 'Storybook Atelier',
@@ -52,6 +55,7 @@ export const THEMES: Record<ThemeMode, Theme> = {
     shadow: 'shadow-violet-300/20',
     texture: 'opacity-15 pointer-events-none',
     glass: 'bg-gradient-to-br from-slate-900/[0.07] to-violet-900/[0.05] backdrop-blur-2xl border border-slate-900/10 shadow-2xl',
+    paper: 'bg-white/70 border border-slate-900/10',
   },
   minecraft: {
     name: 'Minecraft',
@@ -69,6 +73,7 @@ export const THEMES: Record<ThemeMode, Theme> = {
     shadow: 'shadow-black/50',
     texture: 'opacity-0 pointer-events-none',
     glass: 'mc-glass',
+    paper: 'bg-black/40 border-2 border-white/20',
   },
 };
 
