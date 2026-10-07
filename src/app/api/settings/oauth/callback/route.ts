@@ -1,40 +1,71 @@
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { createSupabaseAdmin } from '@/lib/supabase/server';
 import { getAppCredentials } from '@/lib/credentials';
+import { OAUTH_STATE_COOKIE, verifyOAuthState } from '@/lib/auth/oauth-state';
 
 /**
  * GET /api/settings/oauth/callback
  * Handles OAuth redirect from Facebook/Google, exchanges code for tokens,
  * and stores them in parent_settings.
+ *
+ * Security: this route is public (the SameSite=Strict session cookie isn't sent
+ * on the provider's redirect), so it only acts on a signed state that matches the
+ * cookie set by the proxy-protected initiation route. Without that check anyone
+ * could attach their own social account and receive the child's approved posts.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
-  const state = searchParams.get('state'); // 'facebook' or 'google'
+  const state = searchParams.get('state');
   const errorParam = searchParams.get('error');
   const creds = await getAppCredentials();
-  const baseUrl = creds.siteUrl;
+
+  const redirectTo = (params: Record<string, string>) => {
+    const url = new URL('/parent', creds.siteUrl);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    const response = NextResponse.redirect(url.toString());
+    response.cookies.delete({ name: OAUTH_STATE_COOKIE, path: '/api/settings/oauth' });
+    return response;
+  };
 
   if (errorParam || !code) {
-    return NextResponse.redirect(
-      `${baseUrl}/parent?oauth_error=${errorParam || 'no_code'}`,
-    );
+    return redirectTo({ oauth_error: errorParam || 'no_code' });
+  }
+
+  const platform = await verifyOAuthState(state, request.cookies.get(OAUTH_STATE_COOKIE)?.value);
+  if (!platform) {
+    return redirectTo({ oauth_error: 'invalid_state' });
   }
 
   const supabase = createSupabaseAdmin();
 
   try {
-    if (state === 'facebook') {
+    if (platform === 'facebook') {
       await handleFacebookCallback(code, supabase, creds);
-    } else if (state === 'google') {
+    } else {
       await handleGoogleCallback(code, supabase, creds);
     }
-
-    return NextResponse.redirect(`${baseUrl}/parent?oauth_success=${state}`);
+    return redirectTo({ oauth_success: platform });
   } catch (err) {
     console.error('OAuth callback error:', err);
-    return NextResponse.redirect(`${baseUrl}/parent?oauth_error=exchange_failed`);
+    return redirectTo({ oauth_error: 'exchange_failed' });
   }
+}
+
+async function fetchJson(url: string, init?: RequestInit) {
+  const res = await fetch(url, init);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data?.error) {
+    throw new Error(`Request failed (${res.status}): ${JSON.stringify(data?.error ?? data)}`);
+  }
+  return data;
+}
+
+function graphUrl(path: string, params: Record<string, string>): string {
+  const url = new URL(`https://graph.facebook.com/v21.0/${path}`);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  return url.toString();
 }
 
 async function handleFacebookCallback(
@@ -45,38 +76,39 @@ async function handleFacebookCallback(
   const redirectUri = `${creds.siteUrl}/api/settings/oauth/callback`;
 
   // Exchange code for short-lived token
-  const tokenRes = await fetch(
-    `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${creds.facebookAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${creds.facebookAppSecret}&code=${code}`,
-  );
-  const tokenData = await tokenRes.json();
+  const tokenData = await fetchJson(graphUrl('oauth/access_token', {
+    client_id: creds.facebookAppId,
+    redirect_uri: redirectUri,
+    client_secret: creds.facebookAppSecret,
+    code,
+  }));
   if (!tokenData.access_token) throw new Error('No access token');
 
-  // Exchange for long-lived token
-  const longRes = await fetch(
-    `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${creds.facebookAppId}&client_secret=${creds.facebookAppSecret}&fb_exchange_token=${tokenData.access_token}`,
-  );
-  const longData = await longRes.json();
-  const longToken = longData.access_token || tokenData.access_token;
+  // Exchange for long-lived token — page tokens derived from it don't expire.
+  const longData = await fetchJson(graphUrl('oauth/access_token', {
+    grant_type: 'fb_exchange_token',
+    client_id: creds.facebookAppId,
+    client_secret: creds.facebookAppSecret,
+    fb_exchange_token: tokenData.access_token,
+  }));
+  if (!longData.access_token) throw new Error('No long-lived access token');
 
   // Get pages and Instagram accounts
-  const pagesRes = await fetch(
-    `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${longToken}`,
-  );
-  const pagesData = await pagesRes.json();
+  const pagesData = await fetchJson(graphUrl('me/accounts', {
+    fields: 'id,name,access_token,instagram_business_account',
+    access_token: longData.access_token,
+  }));
   const page = pagesData.data?.[0];
 
-  if (!page) throw new Error('No Facebook pages found');
+  if (!page?.access_token) throw new Error('No Facebook pages found');
 
-  const updates: Record<string, string | null> = {
-    facebook_access_token: page.access_token || longToken,
+  const { error } = await supabase.from('parent_settings').update({
+    facebook_access_token: page.access_token,
     facebook_page_id: page.id,
-  };
-
-  if (page.instagram_business_account?.id) {
-    updates.instagram_account_id = page.instagram_business_account.id;
-  }
-
-  await supabase.from('parent_settings').update(updates).eq('id', 1);
+    // Clear a stale Instagram link when the newly connected page has none.
+    instagram_account_id: page.instagram_business_account?.id ?? null,
+  }).eq('id', 1);
+  if (error) throw error;
 }
 
 async function handleGoogleCallback(
@@ -87,7 +119,7 @@ async function handleGoogleCallback(
   const redirectUri = creds.googleRedirectUri || `${creds.siteUrl}/api/settings/oauth/callback`;
 
   // Exchange code for tokens
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+  const tokenData = await fetchJson('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -98,20 +130,19 @@ async function handleGoogleCallback(
       grant_type: 'authorization_code',
     }),
   });
-
-  const tokenData = await tokenRes.json();
   if (!tokenData.refresh_token) throw new Error('No refresh token');
 
-  // Get channel info
-  const channelRes = await fetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true`,
+  // Get channel info — publishing needs the channel id, so fail if there isn't one.
+  const channelData = await fetchJson(
+    'https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',
     { headers: { Authorization: `Bearer ${tokenData.access_token}` } },
   );
-  const channelData = await channelRes.json();
   const channelId = channelData.items?.[0]?.id;
+  if (!channelId) throw new Error('No YouTube channel found for this account');
 
-  await supabase.from('parent_settings').update({
+  const { error } = await supabase.from('parent_settings').update({
     youtube_refresh_token: tokenData.refresh_token,
-    youtube_channel_id: channelId || null,
+    youtube_channel_id: channelId,
   }).eq('id', 1);
+  if (error) throw error;
 }

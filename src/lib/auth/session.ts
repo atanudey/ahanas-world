@@ -56,6 +56,11 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/** HMAC-sign an arbitrary payload with the session secret (hex digest). */
+export async function signPayload(payload: string): Promise<string> {
+  return hmacHex(payload, getSecret());
+}
+
 /** Create a signed `version.expiry.signature` session token. */
 export async function createSessionToken(ttlSeconds: number = SESSION_TTL_SECONDS): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + ttlSeconds;

@@ -170,16 +170,22 @@ describe('instagramClient.publish', () => {
       // 2. poll status -> FINISHED
       .mockResolvedValueOnce({ ok: true, json: async () => ({ status_code: 'FINISHED' }) })
       // 3. media_publish
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'post1' }) });
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'post1' }) })
+      // 4. permalink lookup
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ permalink: 'https://www.instagram.com/p/AbC123/' }),
+      });
     vi.stubGlobal('fetch', fetchSpy);
 
     const result = await instagramClient.publish(imageRequest, tokens);
 
     expect(result.success).toBe(true);
     expect(result.platformPostId).toBe('post1');
-    expect(result.platformUrl).toBe('https://instagram.com/p/post1');
+    expect(result.platformUrl).toBe('https://www.instagram.com/p/AbC123/');
 
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+    expect(fetchSpy.mock.calls[3][0]).toContain('/post1?fields=permalink');
     expect(fetchSpy.mock.calls[0][0]).toContain('/ig123/media');
     const containerBody = JSON.parse(fetchSpy.mock.calls[0][1].body);
     expect(containerBody.image_url).toBe(imageRequest.mediaUrl);
@@ -200,6 +206,45 @@ describe('instagramClient.publish', () => {
     expect(result.error).toMatch(/processing failed/i);
     // Should not have attempted to publish the container.
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails on a status-check API error instead of publishing', async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'container1' }) })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: { message: 'Token expired' } }),
+      });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const result = await instagramClient.publish(imageRequest, tokens);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Token expired');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not publish a container that never finishes processing', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchSpy = vi.fn().mockImplementation(async (url: string) =>
+        url.endsWith('/media')
+          ? { ok: true, json: async () => ({ id: 'container1' }) }
+          : { ok: true, json: async () => ({ status_code: 'IN_PROGRESS' }) },
+      );
+      vi.stubGlobal('fetch', fetchSpy);
+
+      const pending = instagramClient.publish(imageRequest, tokens);
+      await vi.runAllTimersAsync();
+      const result = await pending;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/timed out/i);
+      expect(fetchSpy.mock.calls.some(([u]) => String(u).includes('media_publish'))).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('surfaces a container-creation error', async () => {

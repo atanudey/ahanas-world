@@ -2,10 +2,17 @@ import { NextResponse } from 'next/server';
 import { createSupabaseAdmin } from '@/lib/supabase/server';
 import { publishToSocialMedia } from '@/lib/social/publisher';
 
+/** Statuses a parent can approve from. 'failed' is legacy: older code set it on social failures. */
+const APPROVABLE = ['review_needed', 'failed'];
+
 /**
  * POST /api/content/[id]/publish
- * Called when parent approves content — sets status to published and
- * triggers social media publishing.
+ * - Approve: content awaiting review is published on the site and sent to social.
+ * - Retry: already-published content is re-sent only to platforms that haven't
+ *   got it yet (the publisher skips the rest).
+ *
+ * Social-media failures are recorded per platform in social_posts and never
+ * change the content's own status — the item stays live on the site.
  */
 export async function POST(
   _request: Request,
@@ -15,37 +22,52 @@ export async function POST(
     const { id } = await params;
     const supabase = createSupabaseAdmin();
 
-    // Set content to published
-    const { data: content, error } = await supabase
+    const { data: existing, error: readError } = await supabase
       .from('content')
-      .update({
-        status: 'published',
-        visibility: 'public',
-        published_at: new Date().toISOString(),
-      })
+      .select('status, visibility')
       .eq('id', id)
-      .select()
       .single();
 
-    if (error || !content) {
+    if (readError || !existing) {
       return NextResponse.json({ error: 'Content not found' }, { status: 404 });
     }
 
-    // Publish to social media
-    const result = await publishToSocialMedia(id);
-
-    // If all platform publishes failed, mark content as failed
-    if (result.failed.length > 0 && result.published.length === 0) {
-      await supabase
+    if (APPROVABLE.includes(existing.status)) {
+      // Conditional on status so two concurrent approvals publish once.
+      const { error: updateError } = await supabase
         .from('content')
-        .update({ status: 'failed' })
-        .eq('id', id);
+        .update({
+          status: 'published',
+          visibility: 'public',
+          published_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .in('status', APPROVABLE);
+
+      if (updateError) {
+        console.error('Publish update error:', updateError);
+        return NextResponse.json({ error: 'Failed to publish content' }, { status: 500 });
+      }
+    } else if (existing.status === 'published') {
+      // Retry — respect a parent who has since made the item private.
+      if (existing.visibility !== 'public') {
+        return NextResponse.json(
+          { error: 'Content is private. Make it public before sharing to social media.' },
+          { status: 409 },
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { error: `Content with status "${existing.status}" can't be published` },
+        { status: 409 },
+      );
     }
 
-    return NextResponse.json({
-      content,
-      social: result,
-    });
+    const social = await publishToSocialMedia(id);
+
+    const { data: content } = await supabase.from('content').select('*').eq('id', id).single();
+
+    return NextResponse.json({ content, social });
   } catch (err) {
     console.error('Publish error:', err);
     return NextResponse.json({ error: 'Publishing failed' }, { status: 500 });

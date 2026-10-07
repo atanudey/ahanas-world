@@ -3,8 +3,8 @@
  * hash identically (previously each re-implemented the same SHA-256 logic).
  *
  * NOTE: a 4–8 digit PIN has very low entropy, so the hash mainly guards against
- * casual disclosure of the stored value, not brute force. Brute force is
- * mitigated at the auth layer (see ARCHITECTURE-REVIEW.md → rate limiting).
+ * casual disclosure of the stored value, not brute force. Online brute force is
+ * blocked by the attempt lockout in /api/auth/verify-pin (migration 005).
  */
 
 import { timingSafeEqual } from './session';

@@ -8,7 +8,8 @@ import type { SocialPlatform, PlatformTokens, PublishRequest } from './types';
 /**
  * Determines which platforms to publish to based on content type.
  * - Images (art/reading photos) → Facebook + Instagram
- * - Audio (songs) → Facebook + Instagram + YouTube
+ * - Audio (songs) → Facebook + Instagram + YouTube (recorded as skipped until
+ *   audio is converted to video — none of these accept a raw audio upload)
  * - Video → Facebook + Instagram + YouTube
  */
 function getPlatformsForContentType(
@@ -96,37 +97,72 @@ export async function publishToSocialMedia(contentId: string): Promise<{
   }
 
   const mediaUrl = getMediaUrl(content.media_path);
+  const mediaCategory = getMediaCategory(mediaType);
 
   const result = { published: [] as SocialPlatform[], failed: [] as SocialPlatform[], skipped: [] as SocialPlatform[] };
 
+  // This also runs on retry, so never re-post to a platform that already has the
+  // content (or is mid-upload) — only retry the ones that failed or were skipped.
+  const { data: existingPosts } = await supabase
+    .from('social_posts')
+    .select('platform, status')
+    .eq('content_id', contentId);
+  const alreadyDone = new Set(
+    (existingPosts ?? [])
+      .filter((p: { status: string }) => p.status === 'published' || p.status === 'publishing')
+      .map((p: { platform: string }) => p.platform),
+  );
+
   for (const platform of enabledPlatforms) {
+    if (alreadyDone.has(platform)) continue;
+
+    // Replace earlier failed/skipped rows so each platform shows its latest outcome once.
+    await supabase
+      .from('social_posts')
+      .delete()
+      .eq('content_id', contentId)
+      .eq('platform', platform)
+      .in('status', ['failed', 'skipped']);
+
     const client = clients[platform];
 
-    // Check if platform is configured with tokens
-    if (!client.isConfigured(tokens)) {
-      // Create a skipped record
+    // Facebook video, Instagram Reels and YouTube all need a video file; a raw
+    // audio upload is rejected, so don't attempt it.
+    const skipReason = mediaCategory === 'audio'
+      ? `Audio-only posts aren't supported on ${platform} yet`
+      : !client.isConfigured(tokens)
+        ? `${platform} is not connected yet`
+        : null;
+
+    if (skipReason) {
       await supabase.from('social_posts').insert({
         content_id: contentId,
         platform,
         status: 'skipped',
-        error_message: `${platform} is not connected yet`,
+        error_message: skipReason,
       });
       result.skipped.push(platform);
       continue;
     }
 
-    // Create pending record
-    const { data: post } = await supabase.from('social_posts').insert({
+    // Create pending record — its id is needed to record the outcome.
+    const { data: post, error: insertError } = await supabase.from('social_posts').insert({
       content_id: contentId,
       platform,
       status: 'publishing',
     }).select().single();
 
+    if (insertError || !post) {
+      console.error(`publisher: could not record ${platform} attempt`, insertError);
+      result.failed.push(platform);
+      continue;
+    }
+
     const request: PublishRequest = {
       contentId,
       platform,
       mediaUrl,
-      mediaType: getMediaCategory(mediaType),
+      mediaType: mediaCategory,
       title: content.title,
       description: content.description || content.notes || '',
     };
@@ -141,7 +177,7 @@ export async function publishToSocialMedia(contentId: string): Promise<{
           platform_url: publishResult.platformUrl,
           published_at: new Date().toISOString(),
         })
-        .eq('id', post?.id);
+        .eq('id', post.id);
       result.published.push(platform);
     } else {
       await supabase.from('social_posts')
@@ -149,7 +185,7 @@ export async function publishToSocialMedia(contentId: string): Promise<{
           status: 'failed',
           error_message: publishResult.error,
         })
-        .eq('id', post?.id);
+        .eq('id', post.id);
       result.failed.push(platform);
     }
   }

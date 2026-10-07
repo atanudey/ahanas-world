@@ -35,7 +35,8 @@ export async function GET() {
       // Connection status
       facebook_connected: !!data.facebook_access_token,
       instagram_connected: !!data.facebook_access_token && !!data.instagram_account_id,
-      youtube_connected: !!data.youtube_refresh_token,
+      // Publishing needs both, so only report connected when both are present.
+      youtube_connected: !!data.youtube_refresh_token && !!data.youtube_channel_id,
       // App credentials (secrets masked)
       facebook_app_id: data.facebook_app_id || '',
       facebook_app_secret: maskSecret(data.facebook_app_secret),
@@ -76,7 +77,10 @@ export async function PATCH(request: Request) {
 
     // Handle admin PIN separately — hash before storing. This authenticated route
     // is the only way to *change* an existing PIN.
-    if ('admin_pin' in body && typeof body.admin_pin === 'string' && body.admin_pin.length >= 4) {
+    if ('admin_pin' in body) {
+      if (typeof body.admin_pin !== 'string' || !/^\d{4,8}$/.test(body.admin_pin)) {
+        return NextResponse.json({ error: 'PIN must be 4–8 digits' }, { status: 400 });
+      }
       updates.admin_pin_hash = await hashPin(body.admin_pin);
     }
 

@@ -12,6 +12,8 @@ const { state } = vi.hoisted(() => ({
     content: null as Record<string, unknown> | null,
     settings: null as Record<string, unknown> | null,
     inserts: [] as Record<string, unknown>[],
+    existingPosts: [] as { platform: string; status: string }[],
+    deletes: [] as string[],
   },
 }));
 
@@ -19,9 +21,24 @@ const { state } = vi.hoisted(() => ({
 vi.mock('@/lib/supabase/server', () => {
   function makeQuery(table: string) {
     const api: Record<string, unknown> = {};
+    let deleting = false;
+    let filterPlatform: string | null = null;
     api.select = () => api;
-    api.eq = () => api;
+    api.eq = (col: string, val: string) => {
+      if (col === 'platform') filterPlatform = val;
+      return api;
+    };
+    api.in = () => api;
     api.update = () => api;
+    api.delete = () => {
+      deleting = true;
+      return api;
+    };
+    // Awaiting a non-.single() query (existing posts lookup / delete).
+    api.then = (resolve: (v: unknown) => void) => {
+      if (deleting) state.deletes.push(filterPlatform ?? '');
+      resolve({ data: table === 'social_posts' && !deleting ? state.existingPosts : null, error: null });
+    };
     api.single = async () => {
       if (table === 'content') return { data: state.content, error: null };
       if (table === 'parent_settings') return { data: state.settings, error: null };
@@ -80,6 +97,8 @@ describe('publishToSocialMedia', () => {
     state.content = null;
     state.settings = null;
     state.inserts = [];
+    state.existingPosts = [];
+    state.deletes = [];
     facebookPublish.mockReset().mockResolvedValue({ success: true, platformPostId: 'p', platformUrl: 'u' });
     instagramPublish.mockReset().mockResolvedValue({ success: true, platformPostId: 'p', platformUrl: 'u' });
     youtubePublish.mockReset().mockResolvedValue({ success: true });
@@ -139,5 +158,38 @@ describe('publishToSocialMedia', () => {
     expect(result.skipped).toContain('instagram'); // disabled
     expect(result.skipped).toContain('youtube'); // not configured
     expect(result.published).toEqual(['facebook']);
+  });
+
+  it('on retry, only re-attempts platforms that did not already publish', async () => {
+    state.content = { id: '5', type: 'art', media_type: 'image/jpeg', media_path: 'art/5/x.jpg', title: 'T' };
+    state.settings = allEnabled;
+    state.existingPosts = [
+      { platform: 'facebook', status: 'published' },
+      { platform: 'instagram', status: 'failed' },
+    ];
+
+    const { publishToSocialMedia } = await import('@/lib/social/publisher');
+    const result = await publishToSocialMedia('5');
+
+    expect(facebookPublish).not.toHaveBeenCalled();
+    expect(instagramPublish).toHaveBeenCalledTimes(1);
+    expect(result.published).toEqual(['instagram']);
+    // The stale failed Instagram row is cleared before the new attempt.
+    expect(state.deletes).toEqual(['instagram']);
+  });
+
+  it('skips audio instead of sending it to video-only endpoints', async () => {
+    state.content = { id: '6', type: 'song', media_type: 'audio/webm', media_path: 'song/6/x.webm', title: 'T' };
+    state.settings = allEnabled;
+
+    const { publishToSocialMedia } = await import('@/lib/social/publisher');
+    const result = await publishToSocialMedia('6');
+
+    expect(facebookPublish).not.toHaveBeenCalled();
+    expect(instagramPublish).not.toHaveBeenCalled();
+    expect(result.published).toEqual([]);
+    expect(result.failed).toEqual([]);
+    expect(result.skipped.sort()).toEqual(['facebook', 'instagram', 'youtube']);
+    expect(state.inserts.every((r) => r.status === 'skipped')).toBe(true);
   });
 });

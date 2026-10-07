@@ -46,6 +46,10 @@ export async function PATCH(
       if (key in body) updates[key] = body[key];
     }
 
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
+
     // If status is changing to 'published', set published_at
     if (updates.status === 'published') {
       updates.published_at = new Date().toISOString();
@@ -60,6 +64,10 @@ export async function PATCH(
       .single();
 
     if (error) {
+      // .single() reports "no rows" as PGRST116 — that's a missing id, not a server fault.
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Content not found' }, { status: 404 });
+      }
       console.error('Content update error:', error);
       return NextResponse.json({ error: 'Failed to update content' }, { status: 500 });
     }
@@ -79,26 +87,33 @@ export async function DELETE(
     const supabase = createSupabaseAdmin();
 
     // Get the content to find media paths
-    const { data: content } = await supabase
+    const { data: content, error: readError } = await supabase
       .from('content')
       .select('media_path, thumbnail_path')
       .eq('id', id)
       .single();
 
-    // Delete storage files
-    if (content?.media_path) {
-      await supabase.storage.from('media').remove([content.media_path]);
-    }
-    if (content?.thumbnail_path) {
-      await supabase.storage.from('thumbnails').remove([content.thumbnail_path]);
+    if (readError || !content) {
+      return NextResponse.json({ error: 'Content not found' }, { status: 404 });
     }
 
-    // Delete DB record (cascades to social_posts)
+    // Delete the DB record first (cascades to social_posts). If this fails the
+    // files are still intact; deleting files first could orphan a live record.
     const { error } = await supabase.from('content').delete().eq('id', id);
 
     if (error) {
       console.error('Content delete error:', error);
       return NextResponse.json({ error: 'Failed to delete content' }, { status: 500 });
+    }
+
+    // Best-effort file cleanup — the record is already gone.
+    if (content.media_path) {
+      const { error: mediaError } = await supabase.storage.from('media').remove([content.media_path]);
+      if (mediaError) console.error('Media cleanup error:', mediaError);
+    }
+    if (content.thumbnail_path) {
+      const { error: thumbError } = await supabase.storage.from('thumbnails').remove([content.thumbnail_path]);
+      if (thumbError) console.error('Thumbnail cleanup error:', thumbError);
     }
 
     return NextResponse.json({ success: true });

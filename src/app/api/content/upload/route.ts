@@ -49,9 +49,41 @@ function sectionsFromType(type: string): string[] {
   }
 }
 
+/**
+ * Formats the capture components produce. The stored extension and Content-Type
+ * come from this map — never from the client's filename — so an upload can't
+ * place e.g. an .html page in the public bucket.
+ */
+const ALLOWED_MEDIA_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'audio/webm': 'webm',
+  'audio/mp4': 'm4a',
+  'audio/mpeg': 'mp3',
+  'audio/ogg': 'ogg',
+  'video/webm': 'webm',
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+};
+
+const MAX_MEDIA_BYTES = 200 * 1024 * 1024; // ~ a few minutes of phone video
+const MAX_THUMBNAIL_BYTES = 5 * 1024 * 1024;
+// Media + thumbnail + form fields; checked before buffering the body.
+const MAX_REQUEST_BYTES = MAX_MEDIA_BYTES + MAX_THUMBNAIL_BYTES + 1024 * 1024;
+
+/** 'video/webm;codecs=vp9,opus' → 'video/webm' */
+function baseMimeType(mimeType: string): string {
+  return mimeType.split(';')[0].trim().toLowerCase();
+}
+
 export async function POST(request: Request) {
   try {
-    const supabase = createSupabaseAdmin();
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > MAX_REQUEST_BYTES) {
+      return NextResponse.json({ error: 'Upload is too large' }, { status: 413 });
+    }
+
     const formData = await request.formData();
 
     const type = formData.get('type') as string;
@@ -59,13 +91,34 @@ export async function POST(request: Request) {
     const notes = formData.get('notes') as string;
     const mediaFile = formData.get('media') as File | null;
     const thumbnailFile = formData.get('thumbnail') as File | null;
-    const mimeType = (formData.get('mimeType') as string) || '';
-    const duration = formData.get('duration') ? Number(formData.get('duration')) : null;
+    const rawDuration = formData.get('duration') ? Number(formData.get('duration')) : null;
+    const duration = rawDuration !== null && Number.isFinite(rawDuration) && rawDuration >= 0
+      ? Math.round(rawDuration)
+      : null;
 
     if (!type || !title) {
       return NextResponse.json({ error: 'Type and title are required' }, { status: 400 });
     }
 
+    const hasMedia = !!mediaFile && mediaFile.size > 0;
+    const mimeType = hasMedia
+      ? baseMimeType((formData.get('mimeType') as string) || mediaFile.type || '')
+      : '';
+    const mediaExt = ALLOWED_MEDIA_TYPES[mimeType];
+
+    if (hasMedia) {
+      if (!mediaExt) {
+        return NextResponse.json({ error: `Unsupported media type "${mimeType}"` }, { status: 415 });
+      }
+      if (mediaFile.size > MAX_MEDIA_BYTES) {
+        return NextResponse.json({ error: 'Media file is too large' }, { status: 413 });
+      }
+    }
+    if (thumbnailFile && thumbnailFile.size > MAX_THUMBNAIL_BYTES) {
+      return NextResponse.json({ error: 'Thumbnail is too large' }, { status: 413 });
+    }
+
+    const supabase = createSupabaseAdmin();
     const contentType = contentTypeFromCapture(type);
     const id = crypto.randomUUID();
     const slug = `${slugify(title)}-${id.slice(0, 8)}`;
@@ -75,16 +128,15 @@ export async function POST(request: Request) {
     let fileSize: number | null = null;
 
     // Upload media file
-    if (mediaFile && mediaFile.size > 0) {
-      const ext = mediaFile.name.split('.').pop() || 'bin';
-      mediaPath = `${contentType}/${id}/capture.${ext}`;
+    if (hasMedia) {
+      mediaPath = `${contentType}/${id}/capture.${mediaExt}`;
       fileSize = mediaFile.size;
 
       const buffer = Buffer.from(await mediaFile.arrayBuffer());
       const { error: uploadError } = await supabase.storage
         .from('media')
         .upload(mediaPath, buffer, {
-          contentType: mimeType || mediaFile.type,
+          contentType: mimeType,
           upsert: true,
         });
 
@@ -108,18 +160,21 @@ export async function POST(request: Request) {
       if (thumbError) {
         console.error('Thumbnail upload error:', thumbError);
         // Non-fatal — continue without thumbnail
+        thumbnailPath = null;
       }
-    } else if (mediaPath && (mimeType.startsWith('image/') || contentType === 'art')) {
+    } else if (hasMedia && mimeType.startsWith('image/')) {
       // For images, use the media file as thumbnail too
       thumbnailPath = `${id}/thumb.jpg`;
-      if (mediaFile) {
-        const thumbBuffer = Buffer.from(await mediaFile.arrayBuffer());
-        await supabase.storage
-          .from('thumbnails')
-          .upload(thumbnailPath, thumbBuffer, {
-            contentType: mimeType || 'image/jpeg',
-            upsert: true,
-          });
+      const thumbBuffer = Buffer.from(await mediaFile.arrayBuffer());
+      const { error: thumbError } = await supabase.storage
+        .from('thumbnails')
+        .upload(thumbnailPath, thumbBuffer, {
+          contentType: mimeType,
+          upsert: true,
+        });
+      if (thumbError) {
+        console.error('Thumbnail upload error:', thumbError);
+        thumbnailPath = null;
       }
     }
 

@@ -85,19 +85,31 @@ async function pollAndPublish(
   maxAttempts = 30,
 ): Promise<PublishResult> {
   // Poll container status until ready
+  let finished = false;
   for (let i = 0; i < maxAttempts; i++) {
     const statusRes = await fetch(
-      `${GRAPH_API}/${containerId}?fields=status_code&access_token=${accessToken}`,
+      `${GRAPH_API}/${containerId}?fields=status_code&access_token=${encodeURIComponent(accessToken)}`,
     );
     const statusData = await statusRes.json();
 
-    if (statusData.status_code === 'FINISHED') break;
+    if (!statusRes.ok || statusData.error) {
+      return { success: false, error: statusData.error?.message || 'Instagram status check failed' };
+    }
+    if (statusData.status_code === 'FINISHED') {
+      finished = true;
+      break;
+    }
     if (statusData.status_code === 'ERROR') {
       return { success: false, error: 'Instagram media processing failed' };
     }
 
     // Wait 2 seconds between polls
     await new Promise((r) => setTimeout(r, 2000));
+  }
+
+  // Publishing an unfinished container fails anyway — report the real cause.
+  if (!finished) {
+    return { success: false, error: 'Instagram media processing timed out' };
   }
 
   // Publish the container
@@ -118,6 +130,22 @@ async function pollAndPublish(
   return {
     success: true,
     platformPostId: publishData.id,
-    platformUrl: `https://instagram.com/p/${publishData.id}`,
+    platformUrl: await fetchPermalink(publishData.id, accessToken),
   };
+}
+
+/**
+ * The public URL uses a shortcode, not the media id, so ask the API for it.
+ * The post is already live, so a failure here only drops the link.
+ */
+async function fetchPermalink(mediaId: string, accessToken: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(
+      `${GRAPH_API}/${mediaId}?fields=permalink&access_token=${encodeURIComponent(accessToken)}`,
+    );
+    const data = await res.json();
+    return res.ok && typeof data.permalink === 'string' ? data.permalink : undefined;
+  } catch {
+    return undefined;
+  }
 }
