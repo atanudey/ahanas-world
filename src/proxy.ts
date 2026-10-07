@@ -3,12 +3,11 @@ import type { NextRequest } from 'next/server';
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth/session';
 
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
 
   // Public routes — no auth needed
   const isPublic =
     pathname === '/' ||
-    pathname.startsWith('/hub') ||
     pathname.startsWith('/music') ||
     pathname.startsWith('/art') ||
     pathname.startsWith('/reading') ||
@@ -24,8 +23,11 @@ export async function proxy(request: NextRequest) {
   }
 
   // Protected routes — require a valid, signed, unexpired session token.
+  // The Child Hub is included: a parent unlocks the device once (the session
+  // lasts a day) and the hub's uploads need that session anyway.
   const isProtected =
     pathname.startsWith('/parent') ||
+    pathname.startsWith('/hub') ||
     pathname.startsWith('/portfolio') ||
     pathname.startsWith('/api/settings') ||
     pathname.startsWith('/api/content');
@@ -38,8 +40,10 @@ export async function proxy(request: NextRequest) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-      // Page routes redirect to login
-      return NextResponse.redirect(new URL('/parent/login', request.url));
+      // Page routes go to the login and come back here afterwards.
+      const login = new URL('/parent/login', request.url);
+      login.searchParams.set('next', `${pathname}${search}`);
+      return NextResponse.redirect(login);
     }
   }
 
@@ -49,6 +53,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/parent/:path*',
+    '/hub/:path*',
     '/portfolio/:path*',
     '/api/settings/:path*',
     '/api/content/:path*',

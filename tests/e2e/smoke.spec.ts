@@ -7,7 +7,6 @@ import { test, expect } from '@playwright/test';
 test.describe('Smoke Tests', () => {
   const pages = [
     ['/', 'Homepage'],
-    ['/hub', 'Child Hub'],
     ['/music', 'Music section'],
     ['/art', 'Art section'],
     ['/reading', 'Reading section'],
@@ -22,6 +21,11 @@ test.describe('Smoke Tests', () => {
       expect(res?.status()).toBe(200);
     });
   }
+
+  test('Child Hub (/hub) asks for the parent PIN first', async ({ page }) => {
+    await page.goto('/hub');
+    await expect(page).toHaveURL(/\/parent\/login\?next=%2Fhub/);
+  });
 
   test('PWA manifest is served', async ({ request }) => {
     const res = await request.get('/manifest.webmanifest');

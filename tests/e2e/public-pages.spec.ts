@@ -41,11 +41,11 @@ test.describe('Public Pages', () => {
     expect(ogTitle).toContain('Ahana');
   });
 
-  test('Hub page loads (child creative studio)', async ({ page }) => {
+  test('Hub page requires the parent session', async ({ page }) => {
     await page.goto('/hub');
+    // The proxy sends it to the login and remembers where it was heading.
+    await expect(page).toHaveURL(/\/parent\/login\?next=%2Fhub/);
     await expect(page.locator('body')).not.toBeEmpty();
-    // Hub should be accessible without auth
-    expect(page.url()).toContain('/hub');
   });
 
   test('Navigation between sections works', async ({ page }) => {
@@ -56,10 +56,10 @@ test.describe('Public Pages', () => {
     expect(page.url()).toContain('/music');
   });
 
-  test('Non-existent content shows not found', async ({ page }) => {
-    await page.goto('/content/this-slug-does-not-exist');
-    // Should show "Not Found" message
+  test('Non-existent content is a 404 with the not-found page', async ({ page }) => {
+    const res = await page.goto('/content/this-slug-does-not-exist');
+    expect(res?.status()).toBe(404);
     const body = await page.textContent('body');
-    expect(body).toContain('Not Found');
+    expect(body).toContain("doesn't exist or isn't public yet");
   });
 });

@@ -6,8 +6,14 @@ import { ShieldCheck, Lock, Eye, EyeOff, Sparkles } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { GradientBlobs } from '@/components/shared/GradientBlobs';
 
+/** Where to go after signing in: only a path on this site, never another origin. */
+function safeNext(raw: string | null): string {
+  return raw && /^\/(?!\/)/.test(raw) ? raw : '/parent';
+}
+
 export default function ParentLoginPage() {
-  const { theme: t } = useTheme();
+  const { mode, theme: t } = useTheme();
+  const mc = mode === 'minecraft';
   const router = useRouter();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -67,7 +73,7 @@ export default function ParentLoginPage() {
       const data = await res.json();
 
       if (data.success) {
-        router.push('/parent');
+        router.push(safeNext(new URLSearchParams(window.location.search).get('next')));
       } else {
         setError(data.error || 'Incorrect PIN');
         setPin('');
@@ -82,12 +88,12 @@ export default function ParentLoginPage() {
 
   return (
     <div className={`min-h-screen ${t.bg} flex items-center justify-center relative overflow-hidden`}>
-      <GradientBlobs />
+      {!mc && <GradientBlobs />}
 
       <div className="relative z-10 w-full max-w-md px-6">
-        <div className={`${t.card} rounded-[2.5rem] p-10 text-center`}>
+        <div className={`${t.card} ${mc ? 'mc-font' : 'rounded-[2.5rem]'} p-10 text-center`}>
           {/* Logo / Icon */}
-          <div className={`w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-br ${t.gradient} flex items-center justify-center shadow-2xl`}>
+          <div className={`w-20 h-20 mx-auto mb-6 ${mc ? 'mc-wood-block' : `rounded-3xl bg-gradient-to-br ${t.gradient}`} flex items-center justify-center shadow-2xl`}>
             <ShieldCheck className="w-10 h-10 text-white" />
           </div>
 
@@ -121,7 +127,7 @@ export default function ParentLoginPage() {
                   if (v.length <= 8) setPin(v);
                 }}
                 placeholder={isFirstTime && step === 'confirm' ? 'Re-enter PIN' : 'Enter PIN'}
-                className={`w-full pl-12 pr-12 py-4 rounded-2xl text-center text-2xl tracking-[0.5em] font-bold
+                className={`w-full pl-12 pr-12 py-4 ${mc ? '' : 'rounded-2xl'} text-center text-2xl tracking-[0.5em] font-bold
                   ${t.glass} ${t.text} placeholder:text-sm placeholder:tracking-normal placeholder:font-medium
                   focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all`}
                 autoComplete="off"
@@ -130,7 +136,7 @@ export default function ParentLoginPage() {
                 type="button"
                 onClick={() => setShowPin(!showPin)}
                 aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
-                className={`absolute right-4 top-1/2 -translate-y-1/2 ${t.muted} hover:${t.text} transition`}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 ${t.muted} hover:opacity-80 transition`}
               >
                 {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -145,8 +151,8 @@ export default function ParentLoginPage() {
             <button
               type="submit"
               disabled={loading || pin.length < 4 || isFirstTime === null}
-              className={`w-full py-4 rounded-2xl font-bold text-white text-lg
-                bg-gradient-to-r ${t.gradient} shadow-xl
+              className={`w-full py-4 font-bold text-white text-lg
+                ${mc ? 'mc-grass-block mc-text-shadow' : `rounded-2xl bg-gradient-to-r ${t.gradient}`} shadow-xl
                 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]
                 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
                 transition-all duration-200`}
@@ -167,7 +173,7 @@ export default function ParentLoginPage() {
           <p className={`mt-8 text-xs ${t.muted}`}>
             {isFirstTime
               ? 'This PIN protects your parent dashboard.'
-              : 'Forgot your PIN? Reset via database.'}
+              : 'Forgot your PIN? It can be reset from the database (parent_settings).'}
           </p>
         </div>
       </div>

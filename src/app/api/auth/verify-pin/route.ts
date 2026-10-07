@@ -10,7 +10,11 @@ function setSessionCookie(response: NextResponse, token: string): NextResponse {
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    // Lax, not Strict: the OAuth providers redirect back to this site, and a
+    // Strict cookie is withheld for that whole navigation — the parent would be
+    // sent to the login page instead of seeing the connection result. Every
+    // state-changing route is a POST/PATCH/DELETE, which Lax still protects.
+    sameSite: 'lax',
     maxAge: SESSION_TTL_SECONDS,
     path: '/',
   });
