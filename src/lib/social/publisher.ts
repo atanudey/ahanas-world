@@ -1,5 +1,4 @@
 import { createSupabaseAdmin } from '@/lib/supabase/server';
-import { getMediaUrl } from '@/lib/utils/storage';
 import { facebookClient } from './facebook';
 import { instagramClient } from './instagram';
 import { youtubeClient } from './youtube';
@@ -32,6 +31,12 @@ function getMediaCategory(mimeType: string): 'image' | 'audio' | 'video' {
   return 'image';
 }
 
+/** Long enough for Instagram's container processing and YouTube's download. */
+const MEDIA_LINK_TTL_SECONDS = 2 * 60 * 60;
+
+/** A 'publishing' row older than this is a crashed attempt, not one in progress. */
+const STALE_PUBLISHING_MS = 10 * 60 * 1000;
+
 const clients = {
   facebook: facebookClient,
   instagram: instagramClient,
@@ -40,7 +45,7 @@ const clients = {
 
 /**
  * Publish content to all applicable social platforms.
- * Called when a parent approves content from the dashboard.
+ * Called when a parent approves content from the dashboard, and again on retry.
  */
 export async function publishToSocialMedia(contentId: string): Promise<{
   published: SocialPlatform[];
@@ -82,57 +87,68 @@ export async function publishToSocialMedia(contentId: string): Promise<{
   // Determine applicable platforms
   const mediaType = content.media_type || 'image/jpeg';
   const allPlatforms = getPlatformsForContentType(content.type, mediaType);
-
-  // Filter by enabled settings
-  const enabledPlatforms = allPlatforms.filter((p) => {
-    if (p === 'facebook') return settings.facebook_enabled;
-    if (p === 'instagram') return settings.instagram_enabled;
-    if (p === 'youtube') return settings.youtube_enabled;
-    return false;
-  });
+  const enabled: Record<SocialPlatform, boolean> = {
+    facebook: !!settings.facebook_enabled,
+    instagram: !!settings.instagram_enabled,
+    youtube: !!settings.youtube_enabled,
+  };
 
   if (!content.media_path) {
     // Text-only content (e.g., reading without photo) — skip social
     return { published: [], failed: [], skipped: allPlatforms };
   }
 
-  const mediaUrl = getMediaUrl(content.media_path);
+  // The buckets are private, so give the platforms a signed URL they can fetch.
+  const { data: signed, error: signError } = await supabase.storage
+    .from('media')
+    .createSignedUrl(content.media_path, MEDIA_LINK_TTL_SECONDS);
+  if (signError || !signed?.signedUrl) {
+    throw new Error(`Could not create a media link for publishing: ${signError?.message ?? 'no URL returned'}`);
+  }
+  const mediaUrl = signed.signedUrl;
   const mediaCategory = getMediaCategory(mediaType);
 
   const result = { published: [] as SocialPlatform[], failed: [] as SocialPlatform[], skipped: [] as SocialPlatform[] };
 
   // This also runs on retry, so never re-post to a platform that already has the
-  // content (or is mid-upload) — only retry the ones that failed or were skipped.
-  const { data: existingPosts } = await supabase
+  // content or is mid-upload. Everything else — failed, skipped, or an attempt
+  // that died without recording an outcome — is tried again.
+  const { data: existingPosts, error: postsError } = await supabase
     .from('social_posts')
-    .select('platform, status')
+    .select('platform, status, created_at')
     .eq('content_id', contentId);
-  const alreadyDone = new Set(
-    (existingPosts ?? [])
-      .filter((p: { status: string }) => p.status === 'published' || p.status === 'publishing')
-      .map((p: { platform: string }) => p.platform),
-  );
+  if (postsError) throw postsError;
 
-  for (const platform of enabledPlatforms) {
+  const staleBefore = Date.now() - STALE_PUBLISHING_MS;
+  const alreadyDone = new Set<string>();
+  for (const post of existingPosts ?? []) {
+    const inProgress = post.status === 'publishing' && new Date(post.created_at).getTime() > staleBefore;
+    if (post.status === 'published' || inProgress) alreadyDone.add(post.platform);
+  }
+
+  for (const platform of allPlatforms) {
     if (alreadyDone.has(platform)) continue;
 
-    // Replace earlier failed/skipped rows so each platform shows its latest outcome once.
-    await supabase
+    // Replace earlier failed/skipped/stale rows so each platform shows its latest outcome once.
+    const { error: clearError } = await supabase
       .from('social_posts')
       .delete()
       .eq('content_id', contentId)
       .eq('platform', platform)
-      .in('status', ['failed', 'skipped']);
+      .neq('status', 'published');
+    if (clearError) throw clearError;
 
     const client = clients[platform];
 
     // Facebook video, Instagram Reels and YouTube all need a video file; a raw
     // audio upload is rejected, so don't attempt it.
-    const skipReason = mediaCategory === 'audio'
-      ? `Audio-only posts aren't supported on ${platform} yet`
-      : !client.isConfigured(tokens)
-        ? `${platform} is not connected yet`
-        : null;
+    const skipReason = !enabled[platform]
+      ? `Publishing to ${platform} is turned off in settings`
+      : mediaCategory === 'audio'
+        ? `Audio-only posts aren't supported on ${platform} yet`
+        : !client.isConfigured(tokens)
+          ? `${platform} is not connected yet`
+          : null;
 
     if (skipReason) {
       await supabase.from('social_posts').insert({
@@ -145,7 +161,9 @@ export async function publishToSocialMedia(contentId: string): Promise<{
       continue;
     }
 
-    // Create pending record — its id is needed to record the outcome.
+    // Create pending record — its id is needed to record the outcome. The
+    // unique index from migration 007 makes this fail if another request is
+    // already publishing to this platform, which is what we want.
     const { data: post, error: insertError } = await supabase.from('social_posts').insert({
       content_id: contentId,
       platform,
@@ -187,13 +205,6 @@ export async function publishToSocialMedia(contentId: string): Promise<{
         })
         .eq('id', post.id);
       result.failed.push(platform);
-    }
-  }
-
-  // Mark not-enabled platforms as skipped
-  for (const p of allPlatforms) {
-    if (!enabledPlatforms.includes(p)) {
-      result.skipped.push(p);
     }
   }
 

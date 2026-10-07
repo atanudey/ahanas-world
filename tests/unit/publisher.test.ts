@@ -12,7 +12,7 @@ const { state } = vi.hoisted(() => ({
     content: null as Record<string, unknown> | null,
     settings: null as Record<string, unknown> | null,
     inserts: [] as Record<string, unknown>[],
-    existingPosts: [] as { platform: string; status: string }[],
+    existingPosts: [] as { platform: string; status: string; created_at?: string }[],
     deletes: [] as string[],
   },
 }));
@@ -29,6 +29,7 @@ vi.mock('@/lib/supabase/server', () => {
       return api;
     };
     api.in = () => api;
+    api.neq = () => api;
     api.update = () => api;
     api.delete = () => {
       deleting = true;
@@ -50,12 +51,20 @@ vi.mock('@/lib/supabase/server', () => {
     };
     return api;
   }
-  return { createSupabaseAdmin: () => ({ from: (table: string) => makeQuery(table) }) };
+  return {
+    createSupabaseAdmin: () => ({
+      from: (table: string) => makeQuery(table),
+      storage: {
+        from: () => ({
+          createSignedUrl: async (path: string) => ({
+            data: { signedUrl: `https://cdn.test/signed/${path}` },
+            error: null,
+          }),
+        }),
+      },
+    }),
+  };
 });
-
-vi.mock('@/lib/utils/storage', () => ({
-  getMediaUrl: (path: string) => `https://cdn.test/${path}`,
-}));
 
 const facebookPublish = vi.fn();
 const instagramPublish = vi.fn();
@@ -121,6 +130,8 @@ describe('publishToSocialMedia', () => {
     expect(result.skipped).not.toContain('facebook');
     expect(youtubePublish).not.toHaveBeenCalled();
     expect(facebookPublish).toHaveBeenCalledTimes(1);
+    // Platforms get a signed URL, not a link into the (private) bucket.
+    expect(facebookPublish.mock.calls[0][0].mediaUrl).toBe('https://cdn.test/signed/art/1/x.jpg');
   });
 
   it('skips text-only content with no media path', async () => {
@@ -176,6 +187,35 @@ describe('publishToSocialMedia', () => {
     expect(result.published).toEqual(['instagram']);
     // The stale failed Instagram row is cleared before the new attempt.
     expect(state.deletes).toEqual(['instagram']);
+  });
+
+  it('retries a stale "publishing" row but leaves a fresh one alone', async () => {
+    state.content = { id: '7', type: 'art', media_type: 'image/jpeg', media_path: 'art/7/x.jpg', title: 'T' };
+    state.settings = allEnabled;
+    state.existingPosts = [
+      { platform: 'facebook', status: 'publishing', created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString() },
+      { platform: 'instagram', status: 'publishing', created_at: new Date().toISOString() },
+    ];
+
+    const { publishToSocialMedia } = await import('@/lib/social/publisher');
+    const result = await publishToSocialMedia('7');
+
+    expect(facebookPublish).toHaveBeenCalledTimes(1); // crashed 30 min ago → retried
+    expect(instagramPublish).not.toHaveBeenCalled(); // still in progress → untouched
+    expect(result.published).toEqual(['facebook']);
+    expect(state.deletes).toEqual(['facebook']);
+  });
+
+  it('records a skipped row for a platform turned off in settings', async () => {
+    state.content = { id: '8', type: 'art', media_type: 'image/jpeg', media_path: 'art/8/x.jpg', title: 'T' };
+    state.settings = { ...allEnabled, instagram_enabled: false };
+
+    const { publishToSocialMedia } = await import('@/lib/social/publisher');
+    await publishToSocialMedia('8');
+
+    const igRow = state.inserts.find((r) => r.platform === 'instagram');
+    expect(igRow?.status).toBe('skipped');
+    expect(String(igRow?.error_message)).toMatch(/turned off/);
   });
 
   it('skips audio instead of sending it to video-only endpoints', async () => {

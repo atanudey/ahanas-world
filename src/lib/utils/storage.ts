@@ -1,21 +1,23 @@
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+/**
+ * Media lives in private Supabase Storage buckets (migration 006). These
+ * helpers return app URLs: /api/files checks who may see the file and then
+ * redirects to a short-lived signed URL. Use them for anything a browser loads.
+ *
+ * Server code that needs a URL another service can fetch (social publishing)
+ * should create a signed URL directly with the service-role client instead.
+ */
 
-export function getPublicUrl(bucket: string, path: string): string {
-  return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
+type Bucket = 'media' | 'thumbnails';
+
+function fileUrl(bucket: Bucket, path: string): string {
+  const encoded = path.split('/').map(encodeURIComponent).join('/');
+  return `/api/files/${bucket}/${encoded}`;
 }
 
 export function getMediaUrl(path: string): string {
-  return getPublicUrl('media', path);
+  return fileUrl('media', path);
 }
 
 export function getThumbnailUrl(path: string): string {
-  return getPublicUrl('thumbnails', path);
-}
-
-/**
- * Get an optimized image URL using Supabase image transformations.
- * Only works with Supabase Cloud (not self-hosted).
- */
-export function getOptimizedImageUrl(path: string, width: number, quality = 80): string {
-  return `${SUPABASE_URL}/storage/v1/render/image/public/media/${path}?width=${width}&quality=${quality}`;
+  return fileUrl('thumbnails', path);
 }

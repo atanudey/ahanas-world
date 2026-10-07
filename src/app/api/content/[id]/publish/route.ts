@@ -33,8 +33,10 @@ export async function POST(
     }
 
     if (APPROVABLE.includes(existing.status)) {
-      // Conditional on status so two concurrent approvals publish once.
-      const { error: updateError } = await supabase
+      // Conditional on status, and checked for a matched row, so two approvals
+      // arriving together publish once: the second finds the status already
+      // changed and stops here instead of posting to social media again.
+      const { data: approved, error: updateError } = await supabase
         .from('content')
         .update({
           status: 'published',
@@ -42,11 +44,15 @@ export async function POST(
           published_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .in('status', APPROVABLE);
+        .in('status', APPROVABLE)
+        .select('id');
 
       if (updateError) {
         console.error('Publish update error:', updateError);
         return NextResponse.json({ error: 'Failed to publish content' }, { status: 500 });
+      }
+      if (!approved?.length) {
+        return NextResponse.json({ error: 'This content is already being published' }, { status: 409 });
       }
     } else if (existing.status === 'published') {
       // Retry — respect a parent who has since made the item private.
