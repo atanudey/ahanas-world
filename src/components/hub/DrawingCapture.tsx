@@ -250,7 +250,7 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
         placeholder="Name your masterpiece..."
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-fuchsia-300 focus:border-fuchsia-400 transition mb-3"
+        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-fuchsia-300 focus:border-fuchsia-400 transition mb-3"
       />
       <textarea
         aria-label="Story"
@@ -258,7 +258,7 @@ export function DrawingCapture({ onComplete, onCancel }: DrawingCaptureProps) {
         rows={2}
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-fuchsia-300 focus:border-fuchsia-400 transition mb-3"
+        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-fuchsia-300 focus:border-fuchsia-400 transition mb-3"
       />
       <button
         onClick={handleSubmit}

@@ -377,7 +377,7 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
             placeholder="Give it a name..."
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 transition"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 transition"
           />
           <textarea
             aria-label="Story"
@@ -385,7 +385,7 @@ export function VideoCapture({ onComplete, onCancel }: VideoCaptureProps) {
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 transition"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 transition"
           />
           <button
             onClick={handleSubmit}
