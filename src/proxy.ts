@@ -26,6 +26,7 @@ export async function proxy(request: NextRequest) {
   // Protected routes — require a valid, signed, unexpired session token.
   const isProtected =
     pathname.startsWith('/parent') ||
+    pathname.startsWith('/portfolio') ||
     pathname.startsWith('/api/settings') ||
     pathname.startsWith('/api/content');
 
@@ -48,6 +49,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/parent/:path*',
+    '/portfolio/:path*',
     '/api/settings/:path*',
     '/api/content/:path*',
     '/api/auth/:path*',

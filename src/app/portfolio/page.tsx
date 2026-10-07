@@ -385,7 +385,7 @@ function ThemeDistribution() {
 type SortKey = 'account' | 'name' | 'category' | 'current' | 'invested' | 'pnl' | 'returnPct';
 type SortDir = 'asc' | 'desc';
 
-const ACCOUNT_FILTERS = ['All', 'Zerodha', 'Vested US', 'Groww/External MF'];
+const ACCOUNT_FILTERS = ['All', ...new Set(DATA.holdings.map((h) => h.account))];
 
 function HoldingsTable() {
   const [sortKey, setSortKey] = useState<SortKey>('current');
@@ -397,8 +397,7 @@ function HoldingsTable() {
     const sorted = [...filtered].sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
-      if (av === null) return 1;
-      if (bv === null) return -1;
+      if (av === null || bv === null) return av === bv ? 0 : av === null ? 1 : -1;
       if (typeof av === 'string' && typeof bv === 'string') {
         return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       }
@@ -459,13 +458,19 @@ function HoldingsTable() {
               {cols.map((c) => (
                 <th
                   key={c.key}
-                  onClick={() => toggleSort(c.key)}
-                  className={`py-2.5 px-2 font-bold text-[11px] uppercase tracking-wider text-slate-500 cursor-pointer select-none hover:text-slate-800 whitespace-nowrap ${
+                  aria-sort={sortKey === c.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className={`py-2.5 px-2 font-bold text-[11px] uppercase tracking-wider text-slate-500 whitespace-nowrap ${
                     c.align === 'right' ? 'text-right' : 'text-left'
                   }`}
                 >
-                  {c.label}
-                  {sortKey === c.key && <span className="ml-1 text-slate-400">{sortDir === 'asc' ? '▲' : '▼'}</span>}
+                  <button
+                    type="button"
+                    onClick={() => toggleSort(c.key)}
+                    className="uppercase tracking-wider cursor-pointer select-none hover:text-slate-800"
+                  >
+                    {c.label}
+                    {sortKey === c.key && <span className="ml-1 text-slate-400">{sortDir === 'asc' ? '▲' : '▼'}</span>}
+                  </button>
                 </th>
               ))}
             </tr>
@@ -535,7 +540,7 @@ const INSIGHTS: { title: string; body: string; tone: 'blue' | 'sky' | 'amber' | 
     tone: 'amber',
   },
   {
-    title: 'India IT ~12.6% is the pain point',
+    title: 'India IT ~12.5% is the pain point',
     body: 'TCS & INFY are both ~-27% on an AI de-rating, and this doubles up with US software risk (ADBE, MSFT).',
     tone: 'red',
   },
@@ -589,10 +594,13 @@ export default function PortfolioPage() {
     color: GEO_COLORS[g.region] ?? '#94a3b8',
   }));
 
+  // byAccount.pct in the source is relative to the look-through total (sums to ~99.7%);
+  // derive shares from the account values so the legend adds up to 100%.
+  const accountTotal = byAccount.reduce((s, a) => s + a.currentINR, 0);
   const accountData: DonutDatum[] = byAccount.map((a, i) => ({
     label: a.account,
     value: a.currentINR,
-    pct: a.pct,
+    pct: accountTotal > 0 ? (a.currentINR / accountTotal) * 100 : 0,
     color: ACCOUNT_COLORS[i % ACCOUNT_COLORS.length],
   }));
 
@@ -629,14 +637,14 @@ export default function PortfolioPage() {
             sub={`${formatINR(summary.techExposureINR)} · ~half the book`}
             tone="warning"
           />
-          <KpiCard label="Holdings" value={String(holdings.length)} sub="positions across 3 accounts" />
+          <KpiCard label="Holdings" value={String(holdings.length)} sub={`positions across ${byAccount.length} accounts`} />
         </section>
 
         {/* Donuts row */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <div className="bg-white rounded-xl shadow-sm ring-1 ring-slate-100 p-5 sm:p-6">
             <h2 className="text-base font-black text-slate-800 mb-4">By Geography</h2>
-            <Donut data={geoData} centerLabel="Total" centerValue={formatINR(summary.currentINR)} />
+            <Donut data={geoData} centerLabel="Total" centerValue={formatINR(summary.totalLookThroughINR)} />
           </div>
           <div className="bg-white rounded-xl shadow-sm ring-1 ring-slate-100 p-5 sm:p-6">
             <h2 className="text-base font-black text-slate-800 mb-4">By Account</h2>
